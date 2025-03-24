@@ -1,18 +1,45 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { Edit2 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Sidebar from '@/components/layout/Sidebar';
 import Button from '@/components/common/Button';
 import Editor from '@/components/editor/Editor';
+import Input from '@/components/common/Input';
 import { useNotebooks } from '@/hooks/useNotebooks';
+import { toast } from '@/hooks/use-toast';
 
 const PageView = () => {
   const { pageId } = useParams<{ pageId: string }>();
-  const { getPageById, isLoading } = useNotebooks();
+  const { getPageById, updatePageContent, isLoading } = useNotebooks();
   
   const pageData = pageId ? getPageById(pageId) : null;
   const [content, setContent] = useState(pageData?.page.content || '');
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [title, setTitle] = useState(pageData?.page.title || '');
+  
+  useEffect(() => {
+    if (pageData) {
+      setContent(pageData.page.content);
+      setTitle(pageData.page.title);
+    }
+  }, [pageData]);
+  
+  const handleContentChange = (newContent: string) => {
+    setContent(newContent);
+    if (pageId) {
+      updatePageContent(pageId, newContent);
+    }
+  };
+  
+  const handleTitleChange = () => {
+    setIsEditingTitle(false);
+    toast({
+      title: "Title updated",
+      description: "The page title has been updated successfully"
+    });
+  };
   
   if (isLoading) {
     return (
@@ -57,7 +84,7 @@ const PageView = () => {
       <Sidebar />
       
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Header title={page.title} showBackButton />
+        <Header showBackButton />
         
         <div className="flex-1 overflow-auto animate-fade-in">
           <div className="mb-4 px-8 pt-6">
@@ -73,12 +100,38 @@ const PageView = () => {
                 {section.title}
               </Link>
             </div>
+            
+            <div className="mt-2 flex items-center gap-2">
+              {isEditingTitle ? (
+                <div className="flex items-center gap-2 w-full max-w-md">
+                  <Input
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    className="text-xl font-bold"
+                    autoFocus
+                  />
+                  <Button onClick={handleTitleChange}>Save</Button>
+                </div>
+              ) : (
+                <>
+                  <h1 className="text-2xl font-bold">{title}</h1>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-7 w-7"
+                    onClick={() => setIsEditingTitle(true)}
+                  >
+                    <Edit2 className="h-4 w-4" />
+                  </Button>
+                </>
+              )}
+            </div>
           </div>
           
           <Editor 
             initialContent={page.content} 
             pageId={page.id} 
-            onContentChange={setContent} 
+            onContentChange={handleContentChange} 
           />
         </div>
       </div>

@@ -181,6 +181,99 @@ export function useNotebooks() {
     return null;
   };
 
+  const updatePageContent = (pageId: string, newContent: string) => {
+    setNotebooks(currentNotebooks => {
+      return currentNotebooks.map(notebook => {
+        const updatedSections = notebook.sections.map(section => {
+          const updatedPages = section.pages.map(page => {
+            if (page.id === pageId) {
+              return {
+                ...page, 
+                content: newContent,
+                lastEdited: 'just now'
+              };
+            }
+            return page;
+          });
+          return { ...section, pages: updatedPages };
+        });
+        return { ...notebook, sections: updatedSections };
+      });
+    });
+  };
+
+  const createNotebook = (title: string, description: string) => {
+    const newNotebook: Notebook = {
+      id: `nb-${Date.now()}`,
+      title,
+      description,
+      sections: [],
+      lastEdited: 'just now',
+      createdAt: new Date().toISOString().split('T')[0],
+    };
+    
+    setNotebooks([...notebooks, newNotebook]);
+    return newNotebook;
+  };
+
+  const createSection = (notebookId: string, title: string) => {
+    const newSection: Section = {
+      id: `sec-${Date.now()}`,
+      title,
+      pages: [],
+    };
+    
+    setNotebooks(currentNotebooks => {
+      return currentNotebooks.map(notebook => {
+        if (notebook.id === notebookId) {
+          return {
+            ...notebook,
+            sections: [...notebook.sections, newSection],
+            lastEdited: 'just now'
+          };
+        }
+        return notebook;
+      });
+    });
+    
+    return newSection;
+  };
+
+  const createPage = (notebookId: string, sectionId: string, title: string) => {
+    const newPage: Page = {
+      id: `page-${Date.now()}`,
+      title,
+      content: '',
+      lastEdited: 'just now',
+      createdAt: new Date().toISOString().split('T')[0],
+    };
+    
+    setNotebooks(currentNotebooks => {
+      return currentNotebooks.map(notebook => {
+        if (notebook.id === notebookId) {
+          const updatedSections = notebook.sections.map(section => {
+            if (section.id === sectionId) {
+              return {
+                ...section,
+                pages: [...section.pages, newPage]
+              };
+            }
+            return section;
+          });
+          
+          return {
+            ...notebook,
+            sections: updatedSections,
+            lastEdited: 'just now'
+          };
+        }
+        return notebook;
+      });
+    });
+    
+    return newPage;
+  };
+
   return {
     notebooks,
     isLoading,
@@ -188,5 +281,9 @@ export function useNotebooks() {
     getNotebookById,
     getSectionById,
     getPageById,
+    updatePageContent,
+    createNotebook,
+    createSection,
+    createPage
   };
 }
