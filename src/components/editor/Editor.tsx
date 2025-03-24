@@ -1,7 +1,8 @@
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Clock, Bold, Italic, List, ListOrdered, Link as LinkIcon,
-  Heading1, Heading2, Heading3, Image, CheckSquare, Code, Quote, Undo, Redo
+  Heading1, Heading2, Heading3, Image, Code, Quote, Undo, Redo
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
@@ -42,7 +43,7 @@ const Editor: React.FC<EditorProps> = ({
       setHistoryStack([initialContent]);
       setHistoryIndex(0);
     }
-  }, [initialContent, content]);
+  }, [initialContent]);
   
   // Add to history stack when content changes
   const addToHistory = useCallback((newContent: string) => {
@@ -111,10 +112,29 @@ const Editor: React.FC<EditorProps> = ({
   }, [historyIndex, historyStack]);
 
   const handleImageUpload = () => {
-    toast({
-      title: "Feature coming soon",
-      description: "Image upload will be available in the next update"
-    });
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) {
+        // For now, simulate image insertion with a placeholder
+        const reader = new FileReader();
+        reader.onload = () => {
+          document.execCommand('insertHTML', false, `<img src="${reader.result}" alt="Uploaded image" style="max-width: 100%;" />`);
+          
+          if (editorRef.current) {
+            const newContent = editorRef.current.innerHTML;
+            setContent(newContent);
+            addToHistory(newContent);
+          }
+        };
+        reader.readAsDataURL(file);
+      }
+    };
+    
+    input.click();
   };
   
   const handleLinkInsert = useCallback(() => {
@@ -155,7 +175,7 @@ const Editor: React.FC<EditorProps> = ({
     const saveTimer = setTimeout(() => {
       setIsSaving(true);
       
-      // Simulate API call with slight delay
+      // Simulation of API call
       setTimeout(() => {
         onContentChange?.(content);
         setIsSaving(false);
@@ -324,7 +344,7 @@ const Editor: React.FC<EditorProps> = ({
         )}
         <div
           ref={editorRef}
-          className="prose prose-neutral dark:prose-invert max-w-none focus:outline-none prose-headings:font-bold prose-headings:text-foreground prose-p:text-foreground/90 prose-blockquote:border-l-2 prose-blockquote:border-muted prose-blockquote:pl-4 prose-blockquote:text-muted-foreground prose-code:bg-muted prose-code:rounded prose-code:px-1 prose-pre:bg-muted prose-pre:p-4 prose-pre:rounded"
+          className="prose prose-neutral dark:prose-invert max-w-none focus:outline-none min-h-[300px] prose-headings:font-bold prose-headings:text-foreground prose-p:text-foreground/90 prose-blockquote:border-l-2 prose-blockquote:border-muted prose-blockquote:pl-4 prose-blockquote:text-muted-foreground prose-code:bg-muted prose-code:rounded prose-code:px-1 prose-pre:bg-muted prose-pre:p-4 prose-pre:rounded"
           contentEditable
           suppressContentEditableWarning
           onInput={handleContentChange}

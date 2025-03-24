@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { Edit2, Calendar, Tag as TagIcon, ArrowLeft, Copy, Trash2 } from 'lucide-react';
+import { Edit2, Calendar, Tag as TagIcon, ArrowLeft, Copy, Trash2, Download, Share2 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Sidebar from '@/components/layout/Sidebar';
 import Button from '@/components/common/Button';
@@ -12,10 +12,12 @@ import { toast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
+import { useMobile } from '@/hooks/use-mobile';
 
 const PageView = () => {
   const { pageId } = useParams<{ pageId: string }>();
   const navigate = useNavigate();
+  const isMobile = useMobile();
   const { getPageById, updatePageContent, updatePageTitle, updatePageTags, deletePage, isLoading } = useNotebooks();
   
   const pageData = pageId ? getPageById(pageId) : null;
@@ -25,6 +27,7 @@ const PageView = () => {
   const [tags, setTags] = useState<string[]>(pageData?.page.tags || []);
   const [newTag, setNewTag] = useState('');
   const [autoSaveStatus, setAutoSaveStatus] = useState<'saved' | 'saving' | 'error'>('saved');
+  const [showSidebar, setShowSidebar] = useState(!isMobile);
   const titleInputRef = useRef<HTMLInputElement>(null);
   
   useEffect(() => {
@@ -34,6 +37,11 @@ const PageView = () => {
       setTags(pageData.page.tags || []);
     }
   }, [pageData]);
+  
+  // Handle sidebar visibility based on screen size
+  useEffect(() => {
+    setShowSidebar(!isMobile);
+  }, [isMobile]);
   
   // Handle title focus when editing
   useEffect(() => {
@@ -101,7 +109,21 @@ const PageView = () => {
     setNewTag('');
     
     if (pageId) {
-      updatePageTags(pageId, updatedTags);
+      updatePageTags(pageId, updatedTags)
+        .then(() => {
+          toast({
+            title: "Tag added",
+            description: `Tag "${newTag.trim()}" has been added successfully`
+          });
+        })
+        .catch(() => {
+          setTags(pageData?.page.tags || []);
+          toast({
+            title: "Error adding tag",
+            description: "There was an issue adding the tag. Please try again.",
+            variant: "destructive"
+          });
+        });
     }
   };
   
@@ -110,7 +132,21 @@ const PageView = () => {
     setTags(updatedTags);
     
     if (pageId) {
-      updatePageTags(pageId, updatedTags);
+      updatePageTags(pageId, updatedTags)
+        .then(() => {
+          toast({
+            title: "Tag removed",
+            description: `Tag "${tagToRemove}" has been removed`
+          });
+        })
+        .catch(() => {
+          setTags(pageData?.page.tags || []);
+          toast({
+            title: "Error removing tag",
+            description: "There was an issue removing the tag. Please try again.",
+            variant: "destructive"
+          });
+        });
     }
   };
   
@@ -135,6 +171,48 @@ const PageView = () => {
     toast({
       title: "Link copied",
       description: "Page link copied to clipboard"
+    });
+  };
+  
+  const handleExportAsHTML = () => {
+    if (!pageData) return;
+    
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <title>${pageData.page.title}</title>
+        <style>
+          body { font-family: system-ui, sans-serif; line-height: 1.5; max-width: 800px; margin: 0 auto; padding: 2rem; }
+          h1, h2, h3 { margin-top: 1.5rem; margin-bottom: 1rem; }
+          p { margin-bottom: 1rem; }
+          ul, ol { margin-bottom: 1rem; padding-left: 2rem; }
+          blockquote { border-left: 3px solid #ddd; padding-left: 1rem; margin-left: 0; color: #555; }
+          pre { background: #f7f7f7; padding: 1rem; overflow: auto; border-radius: 3px; }
+          code { background: #f7f7f7; padding: 0.2rem 0.4rem; border-radius: 3px; }
+        </style>
+      </head>
+      <body>
+        <h1>${pageData.page.title}</h1>
+        ${pageData.page.content}
+      </body>
+      </html>
+    `;
+    
+    const blob = new Blob([htmlContent], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${pageData.page.title.replace(/\s+/g, '-').toLowerCase()}.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    toast({
+      title: "Page exported",
+      description: "Your page has been exported as HTML"
     });
   };
   
@@ -200,13 +278,13 @@ const PageView = () => {
   
   return (
     <div className="flex h-screen">
-      <Sidebar />
+      {showSidebar && <Sidebar />}
       
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Header showBackButton />
+        <Header showBackButton toggleSidebar={() => setShowSidebar(prev => !prev)} />
         
         <div className="flex-1 overflow-auto animate-fade-in">
-          <div className="mb-4 px-8 pt-6">
+          <div className="mb-4 px-4 md:px-8 pt-6">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Link to={`/notebook/${notebook.id}`} className="hover:underline">
                 {notebook.title}
@@ -220,7 +298,7 @@ const PageView = () => {
               </Link>
             </div>
             
-            <div className="mt-2 mb-4 flex items-center justify-between">
+            <div className="mt-2 mb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
               <div className="flex items-start gap-2">
                 {isEditingTitle ? (
                   <div className="flex items-center gap-2 w-full max-w-md">
@@ -265,8 +343,19 @@ const PageView = () => {
                   size="icon" 
                   className="h-8 w-8"
                   onClick={handleCopyPageLink}
+                  title="Copy link"
                 >
                   <Copy className="h-4 w-4" />
+                </Button>
+                
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-8 w-8"
+                  onClick={handleExportAsHTML}
+                  title="Export as HTML"
+                >
+                  <Download className="h-4 w-4" />
                 </Button>
                 
                 <Popover>
@@ -275,6 +364,7 @@ const PageView = () => {
                       variant="ghost" 
                       size="icon"
                       className="h-8 w-8 text-destructive hover:text-destructive"
+                      title="Delete page"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
