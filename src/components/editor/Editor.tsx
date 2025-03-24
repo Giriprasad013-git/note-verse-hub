@@ -45,6 +45,18 @@ const Editor: React.FC<EditorProps> = ({
     }
   }, [initialContent]);
   
+  // Ensure editor is focused to allow typing
+  useEffect(() => {
+    // Small delay to ensure DOM is fully loaded
+    const timer = setTimeout(() => {
+      if (editorRef.current) {
+        editorRef.current.focus();
+      }
+    }, 100);
+    
+    return () => clearTimeout(timer);
+  }, []);
+  
   // Add to history stack when content changes
   const addToHistory = useCallback((newContent: string) => {
     if (historyIndex < historyStack.length - 1) {
@@ -60,30 +72,47 @@ const Editor: React.FC<EditorProps> = ({
     }
   }, [historyStack, historyIndex]);
   
-  // Format buttons handler
+  // Format buttons handler with improved error handling
   const handleFormat = useCallback((command: string, value?: string) => {
     // Prevent processing multiple commands at once to avoid race conditions
     if (isProcessingCommand) return;
     
     setIsProcessingCommand(true);
+    
     try {
-      document.execCommand(command, false, value);
-      
-      // Get updated content
+      // Ensure editor has focus before executing command
       if (editorRef.current) {
-        const newContent = editorRef.current.innerHTML;
-        setContent(newContent);
+        editorRef.current.focus();
         
-        // Only add to history if content actually changed
-        if (newContent !== historyStack[historyIndex]) {
-          addToHistory(newContent);
-        }
+        // Small delay to ensure focus is complete
+        setTimeout(() => {
+          document.execCommand(command, false, value);
+          
+          // Get updated content
+          if (editorRef.current) {
+            const newContent = editorRef.current.innerHTML;
+            setContent(newContent);
+            
+            // Only add to history if content actually changed
+            if (newContent !== historyStack[historyIndex]) {
+              addToHistory(newContent);
+            }
+          }
+          
+          setIsProcessingCommand(false);
+        }, 10);
+      } else {
+        setIsProcessingCommand(false);
       }
     } catch (err) {
       console.error("Error executing command:", err);
-    } finally {
       setIsProcessingCommand(false);
-      editorRef.current?.focus();
+      
+      toast({
+        title: "Error applying formatting",
+        description: "There was an issue with the text formatting. Please try again.",
+        variant: "destructive"
+      });
     }
   }, [isProcessingCommand, historyStack, historyIndex, addToHistory]);
 
@@ -111,7 +140,7 @@ const Editor: React.FC<EditorProps> = ({
     }
   }, [historyIndex, historyStack]);
 
-  const handleImageUpload = () => {
+  const handleImageUpload = useCallback(() => {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
@@ -122,36 +151,46 @@ const Editor: React.FC<EditorProps> = ({
         // For now, simulate image insertion with a placeholder
         const reader = new FileReader();
         reader.onload = () => {
-          document.execCommand('insertHTML', false, `<img src="${reader.result}" alt="Uploaded image" style="max-width: 100%;" />`);
+          // Ensure focus before executing command
+          editorRef.current?.focus();
           
-          if (editorRef.current) {
-            const newContent = editorRef.current.innerHTML;
-            setContent(newContent);
-            addToHistory(newContent);
-          }
+          setTimeout(() => {
+            document.execCommand('insertHTML', false, `<img src="${reader.result}" alt="Uploaded image" style="max-width: 100%;" />`);
+            
+            if (editorRef.current) {
+              const newContent = editorRef.current.innerHTML;
+              setContent(newContent);
+              addToHistory(newContent);
+            }
+          }, 10);
         };
         reader.readAsDataURL(file);
       }
     };
     
     input.click();
-  };
+  }, [addToHistory]);
   
   const handleLinkInsert = useCallback(() => {
     const url = prompt("Enter URL:", "https://");
     if (url) {
-      document.execCommand('createLink', false, url);
+      // Ensure focus before executing command
+      editorRef.current?.focus();
       
-      // Get updated content after link insert
-      if (editorRef.current) {
-        const newContent = editorRef.current.innerHTML;
-        setContent(newContent);
-        addToHistory(newContent);
-      }
+      setTimeout(() => {
+        document.execCommand('createLink', false, url);
+        
+        // Get updated content after link insert
+        if (editorRef.current) {
+          const newContent = editorRef.current.innerHTML;
+          setContent(newContent);
+          addToHistory(newContent);
+        }
+      }, 10);
     }
   }, [addToHistory]);
   
-  // Handle content changes
+  // Handle content changes with improved focus handling
   const handleContentChange = useCallback(() => {
     if (!editorRef.current) return;
     
