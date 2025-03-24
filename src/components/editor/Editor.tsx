@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Clock, Bold, Italic, List, ListOrdered, Link as LinkIcon,
   Heading1, Heading2, Heading3, Image, CheckSquare, Code, Quote, Undo, Redo
@@ -43,10 +42,10 @@ const Editor: React.FC<EditorProps> = ({
       setHistoryStack([initialContent]);
       setHistoryIndex(0);
     }
-  }, [initialContent]);
+  }, [initialContent, content]);
   
   // Add to history stack when content changes
-  const addToHistory = (newContent: string) => {
+  const addToHistory = useCallback((newContent: string) => {
     if (historyIndex < historyStack.length - 1) {
       // If we're in the middle of the history, truncate the future
       const newStack = historyStack.slice(0, historyIndex + 1);
@@ -55,13 +54,13 @@ const Editor: React.FC<EditorProps> = ({
       setHistoryIndex(newStack.length - 1);
     } else {
       // We're at the latest history point, just append
-      setHistoryStack([...historyStack, newContent]);
-      setHistoryIndex(historyStack.length);
+      setHistoryStack(prev => [...prev, newContent]);
+      setHistoryIndex(prev => prev + 1);
     }
-  };
+  }, [historyStack, historyIndex]);
   
   // Format buttons handler
-  const handleFormat = (command: string, value?: string) => {
+  const handleFormat = useCallback((command: string, value?: string) => {
     // Prevent processing multiple commands at once to avoid race conditions
     if (isProcessingCommand) return;
     
@@ -85,9 +84,9 @@ const Editor: React.FC<EditorProps> = ({
       setIsProcessingCommand(false);
       editorRef.current?.focus();
     }
-  };
+  }, [isProcessingCommand, historyStack, historyIndex, addToHistory]);
 
-  const handleUndo = () => {
+  const handleUndo = useCallback(() => {
     if (historyIndex > 0) {
       const newIndex = historyIndex - 1;
       setHistoryIndex(newIndex);
@@ -97,9 +96,9 @@ const Editor: React.FC<EditorProps> = ({
         editorRef.current.innerHTML = historyStack[newIndex];
       }
     }
-  };
+  }, [historyIndex, historyStack]);
   
-  const handleRedo = () => {
+  const handleRedo = useCallback(() => {
     if (historyIndex < historyStack.length - 1) {
       const newIndex = historyIndex + 1;
       setHistoryIndex(newIndex);
@@ -109,7 +108,7 @@ const Editor: React.FC<EditorProps> = ({
         editorRef.current.innerHTML = historyStack[newIndex];
       }
     }
-  };
+  }, [historyIndex, historyStack]);
 
   const handleImageUpload = () => {
     toast({
@@ -118,7 +117,7 @@ const Editor: React.FC<EditorProps> = ({
     });
   };
   
-  const handleLinkInsert = () => {
+  const handleLinkInsert = useCallback(() => {
     const url = prompt("Enter URL:", "https://");
     if (url) {
       document.execCommand('createLink', false, url);
@@ -130,10 +129,10 @@ const Editor: React.FC<EditorProps> = ({
         addToHistory(newContent);
       }
     }
-  };
+  }, [addToHistory]);
   
   // Handle content changes
-  const handleContentChange = () => {
+  const handleContentChange = useCallback(() => {
     if (!editorRef.current) return;
     
     const newContent = editorRef.current.innerHTML;
@@ -147,7 +146,7 @@ const Editor: React.FC<EditorProps> = ({
     }, 500);
     
     return () => clearTimeout(timer);
-  };
+  }, [content, addToHistory]);
   
   // Simulate auto-save functionality with delay
   useEffect(() => {
@@ -208,7 +207,7 @@ const Editor: React.FC<EditorProps> = ({
         editorElement.removeEventListener('keydown', handleKeyDown);
       }
     };
-  }, [historyIndex, historyStack]);
+  }, [handleFormat, handleRedo, handleUndo]);
   
   return (
     <div className={cn("editor-container px-8", className)}>
