@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Edit2, Calendar, Tag as TagIcon, ArrowLeft, Copy, Trash2, Download, Share2 } from 'lucide-react';
@@ -12,12 +11,12 @@ import { toast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
-import { useMobile } from '@/hooks/use-mobile';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const PageView = () => {
   const { pageId } = useParams<{ pageId: string }>();
   const navigate = useNavigate();
-  const isMobile = useMobile();
+  const isMobile = useIsMobile();
   const { getPageById, updatePageContent, updatePageTitle, updatePageTags, deletePage, isLoading } = useNotebooks();
   
   const pageData = pageId ? getPageById(pageId) : null;
@@ -281,7 +280,9 @@ const PageView = () => {
       {showSidebar && <Sidebar />}
       
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Header showBackButton toggleSidebar={() => setShowSidebar(prev => !prev)} />
+        <Header 
+          showBackButton 
+          toggleSidebar={() => setShowSidebar(prev => !prev)} />
         
         <div className="flex-1 overflow-auto animate-fade-in">
           <div className="mb-4 px-4 md:px-8 pt-6">

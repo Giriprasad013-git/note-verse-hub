@@ -1,15 +1,16 @@
 
 import React from 'react';
 import { useLocation, Link } from 'react-router-dom';
-import { ArrowLeft, Clock, FileText, History, Search, Share } from 'lucide-react';
+import { ArrowLeft, Clock, FileText, History, Search, Share, Menu } from 'lucide-react';
 import Button from '../common/Button';
 
 interface HeaderProps {
   title?: string;
   showBackButton?: boolean;
+  toggleSidebar?: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ title, showBackButton = false }) => {
+const Header: React.FC<HeaderProps> = ({ title, showBackButton = false, toggleSidebar }) => {
   const location = useLocation();
   
   return (
@@ -21,6 +22,17 @@ const Header: React.FC<HeaderProps> = ({ title, showBackButton = false }) => {
               <ArrowLeft className="h-4 w-4" />
             </Button>
           </Link>
+        )}
+        
+        {toggleSidebar && (
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="h-8 w-8 md:hidden" 
+            onClick={toggleSidebar}
+          >
+            <Menu className="h-4 w-4" />
+          </Button>
         )}
         
         {title && (
