@@ -1,5 +1,6 @@
 
 import { useState, useEffect } from 'react';
+import { toast } from './use-toast';
 
 // Type definitions
 export interface Page {
@@ -8,6 +9,7 @@ export interface Page {
   content: string;
   lastEdited: string;
   createdAt: string;
+  tags: string[];
 }
 
 export interface Section {
@@ -44,6 +46,7 @@ const MOCK_NOTEBOOKS: Notebook[] = [
             content: '<h1>Requirements Specification</h1><p>This document outlines the key requirements for Project Alpha...</p>',
             lastEdited: '2 hours ago',
             createdAt: '2023-10-15',
+            tags: ['documentation', 'requirements']
           },
           {
             id: 'page-2',
@@ -51,6 +54,7 @@ const MOCK_NOTEBOOKS: Notebook[] = [
             content: '<h1>Meeting Notes</h1><p>Attendees: John, Sarah, Mike</p><p>Key decisions:</p><ul><li>Launch date set for December 1st</li><li>Budget approved for external contractors</li></ul>',
             lastEdited: '1 day ago',
             createdAt: '2023-10-20',
+            tags: ['meeting', 'decisions']
           }
         ]
       },
@@ -64,6 +68,7 @@ const MOCK_NOTEBOOKS: Notebook[] = [
             content: '<h1>Technical Architecture</h1><p>This document describes the technical architecture for Project Beta...</p>',
             lastEdited: '3 days ago',
             createdAt: '2023-09-28',
+            tags: ['technical', 'architecture']
           }
         ]
       }
@@ -86,6 +91,7 @@ const MOCK_NOTEBOOKS: Notebook[] = [
             content: '<h1>2023 Goals</h1><ol><li>Learn a new programming language</li><li>Read 20 books</li><li>Exercise 3 times per week</li></ol>',
             lastEdited: '1 week ago',
             createdAt: '2023-01-05',
+            tags: ['goals', 'planning']
           }
         ]
       },
@@ -99,6 +105,7 @@ const MOCK_NOTEBOOKS: Notebook[] = [
             content: '<h1>Atomic Habits</h1><p>Key takeaways from the book:</p><ul><li>Small habits compound over time</li><li>Focus on systems rather than goals</li><li>Identity-based habits are more effective than outcome-based habits</li></ul>',
             lastEdited: '1 day ago',
             createdAt: '2023-07-12',
+            tags: ['book', 'productivity']
           }
         ]
       }
@@ -121,6 +128,7 @@ const MOCK_NOTEBOOKS: Notebook[] = [
             content: '<h1>Transformer Architecture</h1><p>Notes on the transformer architecture used in modern language models...</p>',
             lastEdited: '4 days ago',
             createdAt: '2023-06-10',
+            tags: ['AI', 'machine learning']
           },
           {
             id: 'page-7',
@@ -128,6 +136,7 @@ const MOCK_NOTEBOOKS: Notebook[] = [
             content: '<h1>Research Papers</h1><p>List of important papers to read:</p><ul><li>Attention Is All You Need (2017)</li><li>BERT: Pre-training of Deep Bidirectional Transformers (2018)</li></ul>',
             lastEdited: '1 week ago',
             createdAt: '2023-06-15',
+            tags: ['research', 'papers']
           }
         ]
       }
@@ -181,24 +190,133 @@ export function useNotebooks() {
     return null;
   };
 
-  const updatePageContent = (pageId: string, newContent: string) => {
-    setNotebooks(currentNotebooks => {
-      return currentNotebooks.map(notebook => {
-        const updatedSections = notebook.sections.map(section => {
-          const updatedPages = section.pages.map(page => {
-            if (page.id === pageId) {
-              return {
-                ...page, 
-                content: newContent,
-                lastEdited: 'just now'
-              };
-            }
-            return page;
+  const updatePageContent = (pageId: string, newContent: string): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      try {
+        setNotebooks(currentNotebooks => {
+          const updatedNotebooks = currentNotebooks.map(notebook => {
+            const updatedSections = notebook.sections.map(section => {
+              const updatedPages = section.pages.map(page => {
+                if (page.id === pageId) {
+                  return {
+                    ...page, 
+                    content: newContent,
+                    lastEdited: 'just now'
+                  };
+                }
+                return page;
+              });
+              return { ...section, pages: updatedPages };
+            });
+            return { ...notebook, sections: updatedSections };
           });
-          return { ...section, pages: updatedPages };
+          
+          return updatedNotebooks;
         });
-        return { ...notebook, sections: updatedSections };
-      });
+        
+        // Simulate network delay for promise resolution
+        setTimeout(resolve, 300);
+      } catch (error) {
+        console.error("Error updating page content:", error);
+        reject(error);
+      }
+    });
+  };
+  
+  const updatePageTitle = (pageId: string, newTitle: string): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      try {
+        setNotebooks(currentNotebooks => {
+          const updatedNotebooks = currentNotebooks.map(notebook => {
+            const updatedSections = notebook.sections.map(section => {
+              const updatedPages = section.pages.map(page => {
+                if (page.id === pageId) {
+                  return {
+                    ...page, 
+                    title: newTitle,
+                    lastEdited: 'just now'
+                  };
+                }
+                return page;
+              });
+              return { ...section, pages: updatedPages };
+            });
+            return { ...notebook, sections: updatedSections };
+          });
+          
+          return updatedNotebooks;
+        });
+        
+        // Simulate network delay for promise resolution
+        setTimeout(resolve, 300);
+      } catch (error) {
+        console.error("Error updating page title:", error);
+        reject(error);
+      }
+    });
+  };
+  
+  const updatePageTags = (pageId: string, newTags: string[]): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      try {
+        setNotebooks(currentNotebooks => {
+          const updatedNotebooks = currentNotebooks.map(notebook => {
+            const updatedSections = notebook.sections.map(section => {
+              const updatedPages = section.pages.map(page => {
+                if (page.id === pageId) {
+                  return {
+                    ...page, 
+                    tags: newTags,
+                    lastEdited: 'just now'
+                  };
+                }
+                return page;
+              });
+              return { ...section, pages: updatedPages };
+            });
+            return { ...notebook, sections: updatedSections };
+          });
+          
+          return updatedNotebooks;
+        });
+        
+        // Simulate network delay for promise resolution
+        setTimeout(resolve, 300);
+      } catch (error) {
+        console.error("Error updating page tags:", error);
+        reject(error);
+      }
+    });
+  };
+  
+  const deletePage = (pageId: string): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      try {
+        setNotebooks(currentNotebooks => {
+          const updatedNotebooks = currentNotebooks.map(notebook => {
+            const updatedSections = notebook.sections.map(section => {
+              // Filter out the page to be deleted
+              const updatedPages = section.pages.filter(page => page.id !== pageId);
+              
+              // Only update the notebook's lastEdited if we actually removed a page
+              if (updatedPages.length !== section.pages.length) {
+                notebook.lastEdited = 'just now';
+              }
+              
+              return { ...section, pages: updatedPages };
+            });
+            return { ...notebook, sections: updatedSections };
+          });
+          
+          return updatedNotebooks;
+        });
+        
+        // Simulate network delay for promise resolution
+        setTimeout(resolve, 300);
+      } catch (error) {
+        console.error("Error deleting page:", error);
+        reject(error);
+      }
     });
   };
 
@@ -246,6 +364,7 @@ export function useNotebooks() {
       content: '',
       lastEdited: 'just now',
       createdAt: new Date().toISOString().split('T')[0],
+      tags: [],
     };
     
     setNotebooks(currentNotebooks => {
@@ -282,6 +401,9 @@ export function useNotebooks() {
     getSectionById,
     getPageById,
     updatePageContent,
+    updatePageTitle,
+    updatePageTags,
+    deletePage,
     createNotebook,
     createSection,
     createPage
