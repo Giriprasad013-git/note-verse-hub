@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { 
@@ -8,14 +9,7 @@ import {
   Copy, 
   Trash2, 
   Download, 
-  Share2,
-  PenSquare, 
-  FileText, 
-  Table, 
-  FileSpreadsheet, 
-  Layers, 
-  Layout, 
-  BrainCircuit
+  Share2
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Sidebar from '@/components/layout/Sidebar';
@@ -28,6 +22,7 @@ import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { getPageTypeIcon, getPageTypeName } from '@/components/editor/EditorTypes';
 
 const PageView = () => {
   const { pageId } = useParams<{ pageId: string }>();
@@ -252,151 +247,6 @@ const PageView = () => {
       });
   };
   
-  const getPageTypeIcon = () => {
-    if (!pageData) return null;
-    
-    switch (pageData.page.type) {
-      case 'richtext':
-        return <PenSquare className="h-5 w-5" />;
-      case 'drawio':
-        return <BrainCircuit className="h-5 w-5" />;
-      case 'flatpage':
-        return <FileText className="h-5 w-5" />;
-      case 'flatpagev2':
-        return <Layout className="h-5 w-5" />;
-      case 'pagegroup':
-        return <Layers className="h-5 w-5" />;
-      case 'spreadsheet':
-        return <FileSpreadsheet className="h-5 w-5" />;
-      case 'table':
-        return <Table className="h-5 w-5" />;
-      default:
-        return <FileText className="h-5 w-5" />;
-    }
-  };
-  
-  const getPageTypeName = () => {
-    if (!pageData) return '';
-    
-    switch (pageData.page.type) {
-      case 'richtext':
-        return 'Rich Text';
-      case 'drawio':
-        return 'Draw.io';
-      case 'flatpage':
-        return 'Flat Page';
-      case 'flatpagev2':
-        return 'Flat Page V2';
-      case 'pagegroup':
-        return 'Page Group';
-      case 'spreadsheet':
-        return 'Spreadsheet';
-      case 'table':
-        return 'Table';
-      default:
-        return 'Page';
-    }
-  };
-  
-  const renderPageContent = () => {
-    if (!pageData) return null;
-    
-    switch (pageData.page.type) {
-      case 'richtext':
-        return (
-          <Editor 
-            initialContent={pageData.page.content} 
-            pageId={pageData.page.id} 
-            onContentChange={handleContentChange} 
-          />
-        );
-      case 'drawio':
-        return (
-          <div className="flex-1 flex items-center justify-center p-8 bg-muted/30">
-            <div className="text-center max-w-md">
-              <BrainCircuit className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-              <h2 className="text-xl font-medium mb-2">Draw.io Integration</h2>
-              <p className="text-muted-foreground mb-4">
-                This page type will allow you to create diagrams and flowcharts using the Draw.io integration.
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Feature coming soon.
-              </p>
-            </div>
-          </div>
-        );
-      case 'flatpage':
-      case 'flatpagev2':
-        return (
-          <div className="flex-1 flex items-center justify-center p-8 bg-muted/30">
-            <div className="text-center max-w-md">
-              <FileText className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-              <h2 className="text-xl font-medium mb-2">Flat Page Editor</h2>
-              <p className="text-muted-foreground mb-4">
-                This page type provides a simplified editing experience with minimal formatting options.
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Feature coming soon.
-              </p>
-            </div>
-          </div>
-        );
-      case 'pagegroup':
-        return (
-          <div className="flex-1 flex items-center justify-center p-8 bg-muted/30">
-            <div className="text-center max-w-md">
-              <Layers className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-              <h2 className="text-xl font-medium mb-2">Page Group</h2>
-              <p className="text-muted-foreground mb-4">
-                Group multiple pages together for better organization.
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Feature coming soon.
-              </p>
-            </div>
-          </div>
-        );
-      case 'spreadsheet':
-        return (
-          <div className="flex-1 flex items-center justify-center p-8 bg-muted/30">
-            <div className="text-center max-w-md">
-              <FileSpreadsheet className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-              <h2 className="text-xl font-medium mb-2">Spreadsheet Editor</h2>
-              <p className="text-muted-foreground mb-4">
-                Create tables with calculations and formulas.
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Feature coming soon.
-              </p>
-            </div>
-          </div>
-        );
-      case 'table':
-        return (
-          <div className="flex-1 flex items-center justify-center p-8 bg-muted/30">
-            <div className="text-center max-w-md">
-              <Table className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-              <h2 className="text-xl font-medium mb-2">Table Editor</h2>
-              <p className="text-muted-foreground mb-4">
-                Create structured tables with sortable columns.
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Feature coming soon.
-              </p>
-            </div>
-          </div>
-        );
-      default:
-        return (
-          <Editor 
-            initialContent={pageData.page.content} 
-            pageId={pageData.page.id} 
-            onContentChange={handleContentChange} 
-          />
-        );
-    }
-  };
-  
   if (isLoading) {
     return (
       <div className="flex h-screen">
@@ -552,9 +402,9 @@ const PageView = () => {
             <div className="flex flex-wrap items-center gap-2 mb-4">
               <div className="flex items-center gap-1 mr-3">
                 <div className="flex items-center justify-center h-5 w-5 rounded-md bg-accent/50">
-                  {getPageTypeIcon()}
+                  {getPageTypeIcon(page.type)}
                 </div>
-                <span className="text-xs font-medium">{getPageTypeName()}</span>
+                <span className="text-xs font-medium">{getPageTypeName(page.type)}</span>
               </div>
               
               <div className="flex items-center gap-1">
@@ -620,7 +470,12 @@ const PageView = () => {
             </div>
           </div>
           
-          {renderPageContent()}
+          <Editor 
+            initialContent={page.content} 
+            pageId={page.id}
+            pageType={page.type}
+            onContentChange={handleContentChange} 
+          />
         </div>
       </div>
     </div>

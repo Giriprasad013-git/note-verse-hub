@@ -15,28 +15,39 @@ import { cn } from '@/lib/utils';
 import Button from '../common/Button';
 import { useNotebooks } from '@/hooks/useNotebooks';
 import { toast } from '@/hooks/use-toast';
+import { 
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import Input from '../common/Input';
 
 const Sidebar = () => {
   const location = useLocation();
   const params = useParams<{ notebookId?: string; sectionId?: string; pageId?: string }>();
-  const { notebooks, isLoading, getPageById } = useNotebooks();
+  const { notebooks, isLoading, getPageById, createNotebook } = useNotebooks();
   const [expandedNotebooks, setExpandedNotebooks] = useState<Record<string, boolean>>({});
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
   const [searchQuery, setSearchQuery] = useState('');
+  const [isNewNotebookDialogOpen, setIsNewNotebookDialogOpen] = useState(false);
+  const [newNotebookTitle, setNewNotebookTitle] = useState('');
+  const [newNotebookDescription, setNewNotebookDescription] = useState('');
 
   // Auto-expand based on current route
   useEffect(() => {
     if (params.notebookId) {
       setExpandedNotebooks(prev => ({
         ...prev,
-        [params.notebookId]: true
+        [params.notebookId as string]: true
       }));
     }
     
     if (params.sectionId) {
       setExpandedSections(prev => ({
         ...prev,
-        [params.sectionId]: true
+        [params.sectionId as string]: true
       }));
     }
     
@@ -70,10 +81,32 @@ const Sidebar = () => {
   };
   
   const handleNewNotebook = () => {
+    setIsNewNotebookDialogOpen(true);
+  };
+  
+  const closeNewNotebookDialog = () => {
+    setIsNewNotebookDialogOpen(false);
+    setNewNotebookTitle('');
+    setNewNotebookDescription('');
+  };
+  
+  const handleCreateNotebook = () => {
+    if (!newNotebookTitle.trim()) {
+      toast({
+        title: "Title required",
+        description: "Please enter a title for your notebook",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    createNotebook(newNotebookTitle.trim(), newNotebookDescription.trim());
     toast({
-      title: "Feature coming soon",
-      description: "Creating new notebooks will be available in the next update"
+      title: "Notebook created",
+      description: `${newNotebookTitle} has been created successfully`
     });
+    
+    closeNewNotebookDialog();
   };
 
   // Filter notebooks based on search query
@@ -196,6 +229,14 @@ const Sidebar = () => {
                                   <span className="truncate">{page.title}</span>
                                 </Link>
                               ))}
+                              
+                              <Link
+                                to={`/new-page/${notebook.id}/${section.id}`}
+                                className="flex items-center gap-2 px-2 py-1.5 text-sm rounded-md transition-colors text-muted-foreground hover:bg-accent/30"
+                              >
+                                <Plus className="h-3.5 w-3.5" />
+                                <span className="truncate">Add new page</span>
+                              </Link>
                             </div>
                           )}
                         </div>
@@ -223,6 +264,48 @@ const Sidebar = () => {
           </Button>
         </div>
       </div>
+      
+      <Dialog open={isNewNotebookDialogOpen} onOpenChange={setIsNewNotebookDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Create New Notebook</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <label htmlFor="title" className="text-sm font-medium">
+                Title
+              </label>
+              <Input
+                id="title"
+                placeholder="Enter notebook title"
+                value={newNotebookTitle}
+                onChange={(e) => setNewNotebookTitle(e.target.value)}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid gap-2">
+              <label htmlFor="description" className="text-sm font-medium">
+                Description
+              </label>
+              <Input
+                id="description"
+                placeholder="Enter notebook description"
+                value={newNotebookDescription}
+                onChange={(e) => setNewNotebookDescription(e.target.value)}
+                className="col-span-3"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={closeNewNotebookDialog}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreateNotebook}>
+              Create
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </aside>
   );
 };

@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+
+import { useState, useEffect, useMemo } from 'react';
 import { toast } from './use-toast';
 
 // Type definitions
@@ -71,7 +72,7 @@ const MOCK_NOTEBOOKS: Notebook[] = [
             lastEdited: '3 days ago',
             createdAt: '2023-09-28',
             tags: ['technical', 'architecture'],
-            type: 'richtext'
+            type: 'drawio'
           }
         ]
       }
@@ -95,7 +96,7 @@ const MOCK_NOTEBOOKS: Notebook[] = [
             lastEdited: '1 week ago',
             createdAt: '2023-01-05',
             tags: ['goals', 'planning'],
-            type: 'richtext'
+            type: 'flatpage'
           }
         ]
       },
@@ -110,7 +111,7 @@ const MOCK_NOTEBOOKS: Notebook[] = [
             lastEdited: '1 day ago',
             createdAt: '2023-07-12',
             tags: ['book', 'productivity'],
-            type: 'richtext'
+            type: 'spreadsheet'
           }
         ]
       }
@@ -134,7 +135,7 @@ const MOCK_NOTEBOOKS: Notebook[] = [
             lastEdited: '4 days ago',
             createdAt: '2023-06-10',
             tags: ['AI', 'machine learning'],
-            type: 'richtext'
+            type: 'table'
           },
           {
             id: 'page-7',
@@ -143,7 +144,7 @@ const MOCK_NOTEBOOKS: Notebook[] = [
             lastEdited: '1 week ago',
             createdAt: '2023-06-15',
             tags: ['research', 'papers'],
-            type: 'richtext'
+            type: 'pagegroup'
           }
         ]
       }
@@ -155,45 +156,57 @@ export function useNotebooks() {
   const [notebooks, setNotebooks] = useState<Notebook[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
 
+  // Load data only once to fix infinite loop
   useEffect(() => {
-    const fetchNotebooks = async () => {
-      try {
-        setIsLoading(true);
-        await new Promise(resolve => setTimeout(resolve, 800));
-        setNotebooks(MOCK_NOTEBOOKS);
-        setError(null);
-      } catch (err) {
-        setError('Failed to fetch notebooks');
-        console.error(err);
-      } finally {
-        setIsLoading(false);
-      }
+    if (!isInitialized) {
+      const fetchNotebooks = async () => {
+        try {
+          setIsLoading(true);
+          await new Promise(resolve => setTimeout(resolve, 800));
+          setNotebooks(MOCK_NOTEBOOKS);
+          setError(null);
+        } catch (err) {
+          setError('Failed to fetch notebooks');
+          console.error(err);
+        } finally {
+          setIsLoading(false);
+          setIsInitialized(true);
+        }
+      };
+
+      fetchNotebooks();
+    }
+  }, [isInitialized]);
+
+  // Memoize these functions to prevent recreation on each render
+  const getNotebookById = useMemo(() => {
+    return (id: string) => {
+      return notebooks.find(notebook => notebook.id === id) || null;
     };
+  }, [notebooks]);
 
-    fetchNotebooks();
-  }, []);
+  const getSectionById = useMemo(() => {
+    return (notebookId: string, sectionId: string) => {
+      const notebook = getNotebookById(notebookId);
+      return notebook?.sections.find(section => section.id === sectionId) || null;
+    };
+  }, [getNotebookById]);
 
-  const getNotebookById = (id: string) => {
-    return notebooks.find(notebook => notebook.id === id) || null;
-  };
-
-  const getSectionById = (notebookId: string, sectionId: string) => {
-    const notebook = getNotebookById(notebookId);
-    return notebook?.sections.find(section => section.id === sectionId) || null;
-  };
-
-  const getPageById = (pageId: string) => {
-    for (const notebook of notebooks) {
-      for (const section of notebook.sections) {
-        const page = section.pages.find(page => page.id === pageId);
-        if (page) {
-          return { page, section, notebook };
+  const getPageById = useMemo(() => {
+    return (pageId: string) => {
+      for (const notebook of notebooks) {
+        for (const section of notebook.sections) {
+          const page = section.pages.find(page => page.id === pageId);
+          if (page) {
+            return { page, section, notebook };
+          }
         }
       }
-    }
-    return null;
-  };
+      return null;
+    };
+  }, [notebooks]);
 
   const updatePageContent = (pageId: string, newContent: string): Promise<void> => {
     return new Promise((resolve, reject) => {
@@ -324,12 +337,18 @@ export function useNotebooks() {
       id: `nb-${Date.now()}`,
       title,
       description,
-      sections: [],
+      sections: [
+        {
+          id: `sec-${Date.now()}`,
+          title: 'Default Section',
+          pages: []
+        }
+      ],
       lastEdited: 'just now',
       createdAt: new Date().toISOString().split('T')[0],
     };
     
-    setNotebooks([...notebooks, newNotebook]);
+    setNotebooks(prev => [...prev, newNotebook]);
     return newNotebook;
   };
 
