@@ -1,0 +1,206 @@
+
+import React, { useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { useNotebooks } from '@/hooks/useNotebooks';
+import { toast } from '@/hooks/use-toast';
+import Header from '@/components/layout/Header';
+import Sidebar from '@/components/layout/Sidebar';
+import { 
+  PenSquare, 
+  FileText, 
+  Table, 
+  FileSpreadsheet, 
+  Layers, 
+  Layout, 
+  BrainCircuit
+} from 'lucide-react';
+import Button from '@/components/common/Button';
+import Input from '@/components/common/Input';
+
+const pageTypes = [
+  {
+    id: 'richtext',
+    name: 'Rich Text',
+    description: 'A document with formatted text, images, and more',
+    icon: PenSquare
+  },
+  {
+    id: 'drawio',
+    name: 'Draw.io',
+    description: 'Create diagrams, flowcharts, and mind maps',
+    icon: BrainCircuit
+  },
+  {
+    id: 'flatpage',
+    name: 'Flat Page',
+    description: 'A simple flat document with minimal formatting',
+    icon: FileText
+  },
+  {
+    id: 'flatpagev2',
+    name: 'Flat Page V2',
+    description: 'Enhanced flat page with additional features',
+    icon: Layout
+  },
+  {
+    id: 'pagegroup',
+    name: 'Page Group',
+    description: 'Group multiple pages together',
+    icon: Layers
+  },
+  {
+    id: 'spreadsheet',
+    name: 'Spreadsheet',
+    description: 'Create tables with calculations',
+    icon: FileSpreadsheet
+  },
+  {
+    id: 'table',
+    name: 'Table',
+    description: 'Simple table for structured data',
+    icon: Table
+  }
+];
+
+const NewPage = () => {
+  const { notebookId, sectionId } = useParams<{ notebookId: string; sectionId: string }>();
+  const navigate = useNavigate();
+  const { createPage, getNotebookById, getSectionById } = useNotebooks();
+  
+  const [title, setTitle] = useState('');
+  const [selectedType, setSelectedType] = useState<string>('richtext');
+  
+  const notebook = notebookId ? getNotebookById(notebookId) : null;
+  const section = notebookId && sectionId ? getSectionById(notebookId, sectionId) : null;
+  
+  const handleCreatePage = () => {
+    if (!title.trim()) {
+      toast({
+        title: "Title required",
+        description: "Please enter a title for your page",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    if (!notebookId || !sectionId) {
+      toast({
+        title: "Error",
+        description: "Notebook or section not found",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    const page = createPage(notebookId, sectionId, title.trim(), selectedType as any);
+    toast({
+      title: "Page created",
+      description: `${title} has been created successfully`
+    });
+    
+    navigate(`/page/${page.id}`);
+  };
+  
+  if (!notebook || !section) {
+    return (
+      <div className="flex h-screen">
+        <Sidebar />
+        <div className="flex-1 flex flex-col">
+          <Header showBackButton title="New Page" />
+          <div className="flex-1 p-6 flex items-center justify-center">
+            <div className="text-center">
+              <h2 className="text-xl font-medium mb-2">Notebook or section not found</h2>
+              <p className="text-muted-foreground mb-4">
+                The notebook or section you're trying to add a page to doesn't exist.
+              </p>
+              <Button onClick={() => navigate('/dashboard')}>
+                Back to Dashboard
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  return (
+    <div className="flex h-screen">
+      <Sidebar />
+      
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <Header showBackButton title="Create New Page" />
+        
+        <main className="flex-1 overflow-auto p-6 animate-fade-in">
+          <div className="max-w-4xl mx-auto">
+            <div className="mb-6">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <span>{notebook.title}</span>
+                <span>/</span>
+                <span>{section.title}</span>
+                <span>/</span>
+                <span>New Page</span>
+              </div>
+              <h1 className="text-2xl font-bold mt-2">Create New Page</h1>
+            </div>
+            
+            <div className="mb-6">
+              <label className="block text-sm font-medium mb-2">Page Title</label>
+              <Input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Enter page title"
+                className="w-full max-w-md"
+                autoFocus
+              />
+            </div>
+            
+            <div className="mb-6">
+              <label className="block text-sm font-medium mb-2">Page Type</label>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {pageTypes.map((type) => (
+                  <div
+                    key={type.id}
+                    className={`border rounded-lg p-4 cursor-pointer transition-colors ${
+                      selectedType === type.id 
+                        ? 'border-primary bg-primary/10' 
+                        : 'border-border hover:border-primary/50 hover:bg-accent/30'
+                    }`}
+                    onClick={() => setSelectedType(type.id)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`flex items-center justify-center h-10 w-10 rounded-md ${
+                        selectedType === type.id 
+                          ? 'bg-primary text-primary-foreground' 
+                          : 'bg-muted text-muted-foreground'
+                      }`}>
+                        <type.icon className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <h3 className="font-medium">{type.name}</h3>
+                        <p className="text-xs text-muted-foreground">{type.description}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            <div className="flex gap-3">
+              <Button onClick={handleCreatePage}>
+                Create Page
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => navigate(`/notebook/${notebookId}/section/${sectionId}`)}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  );
+};
+
+export default NewPage;

@@ -1,26 +1,25 @@
 
 import React from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { File, Plus } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Sidebar from '@/components/layout/Sidebar';
 import Button from '@/components/common/Button';
 import PageItem from '@/components/notebook/PageItem';
 import { useNotebooks } from '@/hooks/useNotebooks';
-import { toast } from '@/hooks/use-toast';
 
 const SectionView = () => {
   const { notebookId, sectionId } = useParams<{ notebookId: string; sectionId: string }>();
   const { getSectionById, getNotebookById, isLoading } = useNotebooks();
+  const navigate = useNavigate();
   
   const notebook = notebookId ? getNotebookById(notebookId) : null;
   const section = notebookId && sectionId ? getSectionById(notebookId, sectionId) : null;
   
   const handleNewPage = () => {
-    toast({
-      title: "Feature coming soon",
-      description: "Creating new pages will be available in the next update"
-    });
+    if (notebookId && sectionId) {
+      navigate(`/new-page/${notebookId}/${sectionId}`);
+    }
   };
   
   if (isLoading) {

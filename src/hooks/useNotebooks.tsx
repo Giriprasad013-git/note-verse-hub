@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { toast } from './use-toast';
 
@@ -10,6 +9,7 @@ export interface Page {
   lastEdited: string;
   createdAt: string;
   tags: string[];
+  type: 'richtext' | 'drawio' | 'flatpage' | 'flatpagev2' | 'pagegroup' | 'spreadsheet' | 'table';
 }
 
 export interface Section {
@@ -46,7 +46,8 @@ const MOCK_NOTEBOOKS: Notebook[] = [
             content: '<h1>Requirements Specification</h1><p>This document outlines the key requirements for Project Alpha...</p>',
             lastEdited: '2 hours ago',
             createdAt: '2023-10-15',
-            tags: ['documentation', 'requirements']
+            tags: ['documentation', 'requirements'],
+            type: 'richtext'
           },
           {
             id: 'page-2',
@@ -54,7 +55,8 @@ const MOCK_NOTEBOOKS: Notebook[] = [
             content: '<h1>Meeting Notes</h1><p>Attendees: John, Sarah, Mike</p><p>Key decisions:</p><ul><li>Launch date set for December 1st</li><li>Budget approved for external contractors</li></ul>',
             lastEdited: '1 day ago',
             createdAt: '2023-10-20',
-            tags: ['meeting', 'decisions']
+            tags: ['meeting', 'decisions'],
+            type: 'richtext'
           }
         ]
       },
@@ -68,7 +70,8 @@ const MOCK_NOTEBOOKS: Notebook[] = [
             content: '<h1>Technical Architecture</h1><p>This document describes the technical architecture for Project Beta...</p>',
             lastEdited: '3 days ago',
             createdAt: '2023-09-28',
-            tags: ['technical', 'architecture']
+            tags: ['technical', 'architecture'],
+            type: 'richtext'
           }
         ]
       }
@@ -91,7 +94,8 @@ const MOCK_NOTEBOOKS: Notebook[] = [
             content: '<h1>2023 Goals</h1><ol><li>Learn a new programming language</li><li>Read 20 books</li><li>Exercise 3 times per week</li></ol>',
             lastEdited: '1 week ago',
             createdAt: '2023-01-05',
-            tags: ['goals', 'planning']
+            tags: ['goals', 'planning'],
+            type: 'richtext'
           }
         ]
       },
@@ -105,7 +109,8 @@ const MOCK_NOTEBOOKS: Notebook[] = [
             content: '<h1>Atomic Habits</h1><p>Key takeaways from the book:</p><ul><li>Small habits compound over time</li><li>Focus on systems rather than goals</li><li>Identity-based habits are more effective than outcome-based habits</li></ul>',
             lastEdited: '1 day ago',
             createdAt: '2023-07-12',
-            tags: ['book', 'productivity']
+            tags: ['book', 'productivity'],
+            type: 'richtext'
           }
         ]
       }
@@ -128,7 +133,8 @@ const MOCK_NOTEBOOKS: Notebook[] = [
             content: '<h1>Transformer Architecture</h1><p>Notes on the transformer architecture used in modern language models...</p>',
             lastEdited: '4 days ago',
             createdAt: '2023-06-10',
-            tags: ['AI', 'machine learning']
+            tags: ['AI', 'machine learning'],
+            type: 'richtext'
           },
           {
             id: 'page-7',
@@ -136,7 +142,8 @@ const MOCK_NOTEBOOKS: Notebook[] = [
             content: '<h1>Research Papers</h1><p>List of important papers to read:</p><ul><li>Attention Is All You Need (2017)</li><li>BERT: Pre-training of Deep Bidirectional Transformers (2018)</li></ul>',
             lastEdited: '1 week ago',
             createdAt: '2023-06-15',
-            tags: ['research', 'papers']
+            tags: ['research', 'papers'],
+            type: 'richtext'
           }
         ]
       }
@@ -150,11 +157,9 @@ export function useNotebooks() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Simulate API fetch with a delay
     const fetchNotebooks = async () => {
       try {
         setIsLoading(true);
-        // Simulate network delay
         await new Promise(resolve => setTimeout(resolve, 800));
         setNotebooks(MOCK_NOTEBOOKS);
         setError(null);
@@ -214,7 +219,6 @@ export function useNotebooks() {
           return updatedNotebooks;
         });
         
-        // Simulate network delay for promise resolution
         setTimeout(resolve, 300);
       } catch (error) {
         console.error("Error updating page content:", error);
@@ -247,7 +251,6 @@ export function useNotebooks() {
           return updatedNotebooks;
         });
         
-        // Simulate network delay for promise resolution
         setTimeout(resolve, 300);
       } catch (error) {
         console.error("Error updating page title:", error);
@@ -280,7 +283,6 @@ export function useNotebooks() {
           return updatedNotebooks;
         });
         
-        // Simulate network delay for promise resolution
         setTimeout(resolve, 300);
       } catch (error) {
         console.error("Error updating page tags:", error);
@@ -295,10 +297,8 @@ export function useNotebooks() {
         setNotebooks(currentNotebooks => {
           const updatedNotebooks = currentNotebooks.map(notebook => {
             const updatedSections = notebook.sections.map(section => {
-              // Filter out the page to be deleted
               const updatedPages = section.pages.filter(page => page.id !== pageId);
               
-              // Only update the notebook's lastEdited if we actually removed a page
               if (updatedPages.length !== section.pages.length) {
                 notebook.lastEdited = 'just now';
               }
@@ -311,7 +311,6 @@ export function useNotebooks() {
           return updatedNotebooks;
         });
         
-        // Simulate network delay for promise resolution
         setTimeout(resolve, 300);
       } catch (error) {
         console.error("Error deleting page:", error);
@@ -357,7 +356,7 @@ export function useNotebooks() {
     return newSection;
   };
 
-  const createPage = (notebookId: string, sectionId: string, title: string) => {
+  const createPage = (notebookId: string, sectionId: string, title: string, type: Page['type'] = 'richtext') => {
     const newPage: Page = {
       id: `page-${Date.now()}`,
       title,
@@ -365,6 +364,7 @@ export function useNotebooks() {
       lastEdited: 'just now',
       createdAt: new Date().toISOString().split('T')[0],
       tags: [],
+      type
     };
     
     setNotebooks(currentNotebooks => {

@@ -11,6 +11,7 @@ import NotebookView from "./pages/NotebookView";
 import SectionView from "./pages/SectionView";
 import PageView from "./pages/PageView";
 import NotFound from "./pages/NotFound";
+import NewPage from "./pages/NewPage";
 
 // Create a client
 const queryClient = new QueryClient();
@@ -27,6 +28,7 @@ const App = () => (
           <Route path="/notebook/:notebookId" element={<NotebookView />} />
           <Route path="/notebook/:notebookId/section/:sectionId" element={<SectionView />} />
           <Route path="/page/:pageId" element={<PageView />} />
+          <Route path="/new-page/:notebookId/:sectionId" element={<NewPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
