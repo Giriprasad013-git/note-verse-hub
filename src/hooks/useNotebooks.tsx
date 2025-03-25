@@ -376,8 +376,11 @@ export function useNotebooks() {
   };
 
   const createPage = (notebookId: string, sectionId: string, title: string, type: Page['type'] = 'richtext') => {
+    // Generate unique ID with current timestamp
+    const pageId = `page-${Date.now()}`;
+    
     const newPage: Page = {
-      id: `page-${Date.now()}`,
+      id: pageId,
       title,
       content: '',
       lastEdited: 'just now',
@@ -386,6 +389,7 @@ export function useNotebooks() {
       type
     };
     
+    // Update the notebooks state with the new page
     setNotebooks(currentNotebooks => {
       return currentNotebooks.map(notebook => {
         if (notebook.id === notebookId) {

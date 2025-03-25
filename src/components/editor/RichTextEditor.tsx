@@ -36,6 +36,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
   const [isProcessingCommand, setIsProcessingCommand] = useState(false);
   const editorRef = useRef<HTMLDivElement>(null);
   const cursorPositionRef = useRef<Range | null>(null);
+  const isContentUpdating = useRef<boolean>(false);
   
   // Save cursor position before any command execution
   const saveCursorPosition = useCallback(() => {
@@ -60,19 +61,34 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
   
   // Initialize editor content
   useEffect(() => {
-    if (initialContent && editorRef.current) {
-      editorRef.current.innerHTML = initialContent;
+    if (initialContent && editorRef.current && !isContentUpdating.current) {
+      isContentUpdating.current = true;
+      
+      // Save cursor position before updating content
+      saveCursorPosition();
+      
+      // Only update if content is different
+      if (editorRef.current.innerHTML !== initialContent) {
+        editorRef.current.innerHTML = initialContent;
+      }
+      
       setContent(initialContent);
       setHistoryStack([initialContent]);
       setHistoryIndex(0);
+      
+      // Restore cursor after a short delay
+      setTimeout(() => {
+        restoreCursorPosition();
+        isContentUpdating.current = false;
+      }, 10);
     }
-  }, [initialContent]);
+  }, [initialContent, saveCursorPosition, restoreCursorPosition]);
   
   // Ensure editor is focused to allow typing
   useEffect(() => {
     // Small delay to ensure DOM is fully loaded
     const timer = setTimeout(() => {
-      if (editorRef.current) {
+      if (editorRef.current && !editorRef.current.contains(document.activeElement)) {
         editorRef.current.focus();
       }
     }, 100);
@@ -165,7 +181,9 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
             }
             
             // Notify parent of content change
-            onContentChange?.(newContent);
+            if (onContentChange && !isContentUpdating.current) {
+              onContentChange(newContent);
+            }
           }
           
           setIsProcessingCommand(false);
@@ -191,12 +209,23 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
       setHistoryIndex(newIndex);
       
       if (editorRef.current) {
+        // Save cursor position before updating
+        saveCursorPosition();
+        
         editorRef.current.innerHTML = historyStack[newIndex];
         setContent(historyStack[newIndex]);
-        onContentChange?.(historyStack[newIndex]);
+        
+        if (onContentChange && !isContentUpdating.current) {
+          onContentChange(historyStack[newIndex]);
+        }
+        
+        // Restore cursor position after a short delay
+        setTimeout(() => {
+          restoreCursorPosition();
+        }, 10);
       }
     }
-  }, [historyIndex, historyStack, onContentChange]);
+  }, [historyIndex, historyStack, onContentChange, saveCursorPosition, restoreCursorPosition]);
   
   const handleRedo = useCallback(() => {
     if (historyIndex < historyStack.length - 1) {
@@ -204,12 +233,23 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
       setHistoryIndex(newIndex);
       
       if (editorRef.current) {
+        // Save cursor position before updating
+        saveCursorPosition();
+        
         editorRef.current.innerHTML = historyStack[newIndex];
         setContent(historyStack[newIndex]);
-        onContentChange?.(historyStack[newIndex]);
+        
+        if (onContentChange && !isContentUpdating.current) {
+          onContentChange(historyStack[newIndex]);
+        }
+        
+        // Restore cursor position after a short delay
+        setTimeout(() => {
+          restoreCursorPosition();
+        }, 10);
       }
     }
-  }, [historyIndex, historyStack, onContentChange]);
+  }, [historyIndex, historyStack, onContentChange, saveCursorPosition, restoreCursorPosition]);
 
   const handleImageUpload = useCallback(() => {
     // Save current cursor position before opening dialog
@@ -238,7 +278,10 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
               const newContent = editorRef.current.innerHTML;
               setContent(newContent);
               addToHistory(newContent);
-              onContentChange?.(newContent);
+              
+              if (onContentChange && !isContentUpdating.current) {
+                onContentChange(newContent);
+              }
             }
           }, 10);
         };
@@ -269,7 +312,10 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
           const newContent = editorRef.current.innerHTML;
           setContent(newContent);
           addToHistory(newContent);
-          onContentChange?.(newContent);
+          
+          if (onContentChange && !isContentUpdating.current) {
+            onContentChange(newContent);
+          }
         }
       }, 10);
     }
@@ -277,7 +323,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
   
   // Handle content changes with improved focus handling
   const handleContentChange = useCallback(() => {
-    if (!editorRef.current) return;
+    if (!editorRef.current || isContentUpdating.current) return;
     
     const newContent = editorRef.current.innerHTML;
     
@@ -290,23 +336,44 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
     const timer = setTimeout(() => {
       if (newContent !== historyStack[historyIndex]) {
         addToHistory(newContent);
-        onContentChange?.(newContent);
+        
+        if (onContentChange && !isContentUpdating.current) {
+          // Save cursor before content update
+          saveCursorPosition();
+          
+          onContentChange(newContent);
+          
+          // Short delay to ensure DOM is updated
+          setTimeout(() => {
+            restoreCursorPosition();
+          }, 10);
+        }
       }
     }, 500);
     
     return () => clearTimeout(timer);
-  }, [content, historyStack, historyIndex, addToHistory, onContentChange]);
+  }, [content, historyStack, historyIndex, addToHistory, onContentChange, saveCursorPosition, restoreCursorPosition]);
   
   // Auto-save functionality
   useEffect(() => {
-    // Don't trigger save if content hasn't changed from initial
-    if (content === initialContent) return;
+    // Don't trigger save if content hasn't changed from initial or if we're currently updating
+    if (content === initialContent || isContentUpdating.current) return;
     
     const saveTimer = setTimeout(() => {
       setIsSaving(true);
       
       // Notify parent component of content change
-      onContentChange?.(content);
+      if (onContentChange && !isContentUpdating.current) {
+        // Save cursor position before update
+        saveCursorPosition();
+        
+        onContentChange(content);
+        
+        // Restore cursor after update
+        setTimeout(() => {
+          restoreCursorPosition();
+        }, 10);
+      }
       
       // Simulate API delay
       setTimeout(() => {
@@ -316,7 +383,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
     }, 1000);
     
     return () => clearTimeout(saveTimer);
-  }, [content, initialContent, onContentChange]);
+  }, [content, initialContent, onContentChange, saveCursorPosition, restoreCursorPosition]);
   
   // Create keyboard shortcut handlers
   useEffect(() => {

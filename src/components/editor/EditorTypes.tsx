@@ -28,11 +28,14 @@ export const Editor: React.FC<EditorProps> = ({
   onContentChange,
   className,
 }) => {
+  // Ensure we have a valid initial content
+  const safeInitialContent = initialContent || '';
+  
   switch (pageType) {
     case 'richtext':
       return (
         <RichTextEditor
-          initialContent={initialContent}
+          initialContent={safeInitialContent}
           pageId={pageId}
           onContentChange={onContentChange}
           className={className}
@@ -52,7 +55,7 @@ export const Editor: React.FC<EditorProps> = ({
     default:
       return (
         <RichTextEditor
-          initialContent={initialContent}
+          initialContent={safeInitialContent}
           pageId={pageId}
           onContentChange={onContentChange}
           className={className}
