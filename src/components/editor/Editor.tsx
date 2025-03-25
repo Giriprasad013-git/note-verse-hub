@@ -61,6 +61,9 @@ const Editor: React.FC<EditorProps> = ({
   // Initialize editor content
   useEffect(() => {
     if (initialContent && initialContent !== content) {
+      if (editorRef.current) {
+        editorRef.current.innerHTML = initialContent;
+      }
       setContent(initialContent);
       setHistoryStack([initialContent]);
       setHistoryIndex(0);
@@ -137,6 +140,11 @@ const Editor: React.FC<EditorProps> = ({
               preElement.style.padding = '1rem';
               preElement.style.borderRadius = '4px';
               preElement.style.overflow = 'auto';
+              preElement.style.fontFamily = 'monospace';
+              preElement.style.fontSize = '0.9em';
+              preElement.style.display = 'block';
+              preElement.style.whiteSpace = 'pre-wrap';
+              preElement.style.wordBreak = 'break-all';
             }
           }
         } else {
@@ -157,6 +165,9 @@ const Editor: React.FC<EditorProps> = ({
             if (newContent !== historyStack[historyIndex]) {
               addToHistory(newContent);
             }
+            
+            // Notify parent of content change
+            onContentChange?.(newContent);
           }
           
           setIsProcessingCommand(false);
@@ -174,7 +185,7 @@ const Editor: React.FC<EditorProps> = ({
         variant: "destructive"
       });
     }
-  }, [isProcessingCommand, historyStack, historyIndex, addToHistory, saveCursorPosition, restoreCursorPosition]);
+  }, [isProcessingCommand, historyStack, historyIndex, addToHistory, saveCursorPosition, restoreCursorPosition, onContentChange]);
 
   const handleUndo = useCallback(() => {
     if (historyIndex > 0) {
@@ -184,9 +195,10 @@ const Editor: React.FC<EditorProps> = ({
       if (editorRef.current) {
         editorRef.current.innerHTML = historyStack[newIndex];
         setContent(historyStack[newIndex]);
+        onContentChange?.(historyStack[newIndex]);
       }
     }
-  }, [historyIndex, historyStack]);
+  }, [historyIndex, historyStack, onContentChange]);
   
   const handleRedo = useCallback(() => {
     if (historyIndex < historyStack.length - 1) {
@@ -196,9 +208,10 @@ const Editor: React.FC<EditorProps> = ({
       if (editorRef.current) {
         editorRef.current.innerHTML = historyStack[newIndex];
         setContent(historyStack[newIndex]);
+        onContentChange?.(historyStack[newIndex]);
       }
     }
-  }, [historyIndex, historyStack]);
+  }, [historyIndex, historyStack, onContentChange]);
 
   const handleImageUpload = useCallback(() => {
     // Save current cursor position before opening dialog
@@ -227,6 +240,7 @@ const Editor: React.FC<EditorProps> = ({
               const newContent = editorRef.current.innerHTML;
               setContent(newContent);
               addToHistory(newContent);
+              onContentChange?.(newContent);
             }
           }, 10);
         };
@@ -235,7 +249,7 @@ const Editor: React.FC<EditorProps> = ({
     };
     
     input.click();
-  }, [addToHistory, saveCursorPosition, restoreCursorPosition]);
+  }, [addToHistory, saveCursorPosition, restoreCursorPosition, onContentChange]);
   
   const handleLinkInsert = useCallback(() => {
     // Save current cursor position before prompting
@@ -257,10 +271,11 @@ const Editor: React.FC<EditorProps> = ({
           const newContent = editorRef.current.innerHTML;
           setContent(newContent);
           addToHistory(newContent);
+          onContentChange?.(newContent);
         }
       }, 10);
     }
-  }, [addToHistory, saveCursorPosition, restoreCursorPosition]);
+  }, [addToHistory, saveCursorPosition, restoreCursorPosition, onContentChange]);
   
   // Handle content changes with improved focus handling
   const handleContentChange = useCallback(() => {
@@ -277,11 +292,12 @@ const Editor: React.FC<EditorProps> = ({
     const timer = setTimeout(() => {
       if (newContent !== historyStack[historyIndex]) {
         addToHistory(newContent);
+        onContentChange?.(newContent);
       }
     }, 500);
     
     return () => clearTimeout(timer);
-  }, [content, historyStack, historyIndex, addToHistory]);
+  }, [content, historyStack, historyIndex, addToHistory, onContentChange]);
   
   // Auto-save functionality
   useEffect(() => {
@@ -466,9 +482,9 @@ const Editor: React.FC<EditorProps> = ({
           contentEditable
           suppressContentEditableWarning
           onInput={handleContentChange}
-          dangerouslySetInnerHTML={{ __html: content }}
           spellCheck="false"
           data-gramm="false"
+          style={{ whiteSpace: 'pre-wrap' }}
           onClick={saveCursorPosition}
           onKeyUp={saveCursorPosition}
           onBlur={() => {

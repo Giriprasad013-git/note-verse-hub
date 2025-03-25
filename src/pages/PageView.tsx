@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Edit2, Calendar, Tag as TagIcon, ArrowLeft, Copy, Trash2, Download, Share2 } from 'lucide-react';
@@ -189,12 +190,13 @@ const PageView = () => {
           ul, ol { margin-bottom: 1rem; padding-left: 2rem; }
           blockquote { border-left: 3px solid #ddd; padding-left: 1rem; margin-left: 0; color: #555; }
           pre { background: #f7f7f7; padding: 1rem; overflow: auto; border-radius: 3px; }
-          code { background: #f7f7f7; padding: 0.2rem 0.4rem; border-radius: 3px; }
+          code { background: #f7f7f7; padding: 0.2rem 0.4rem; border-radius: 3px; font-family: monospace; }
+          img { max-width: 100%; height: auto; }
         </style>
       </head>
       <body>
         <h1>${pageData.page.title}</h1>
-        ${pageData.page.content}
+        ${content}
       </body>
       </html>
     `;
