@@ -35,6 +35,28 @@ const Editor: React.FC<EditorProps> = ({
   const [historyIndex, setHistoryIndex] = useState(0);
   const [isProcessingCommand, setIsProcessingCommand] = useState(false);
   const editorRef = useRef<HTMLDivElement>(null);
+  const cursorPositionRef = useRef<Range | null>(null);
+  
+  // Save cursor position before any command execution
+  const saveCursorPosition = useCallback(() => {
+    if (document.getSelection) {
+      const selection = document.getSelection();
+      if (selection && selection.rangeCount > 0) {
+        cursorPositionRef.current = selection.getRangeAt(0).cloneRange();
+      }
+    }
+  }, []);
+
+  // Restore cursor position after command execution
+  const restoreCursorPosition = useCallback(() => {
+    if (cursorPositionRef.current && document.getSelection) {
+      const selection = document.getSelection();
+      if (selection) {
+        selection.removeAllRanges();
+        selection.addRange(cursorPositionRef.current);
+      }
+    }
+  }, []);
   
   // Initialize editor content
   useEffect(() => {
@@ -72,7 +94,7 @@ const Editor: React.FC<EditorProps> = ({
     }
   }, [historyStack, historyIndex]);
   
-  // Format buttons handler with improved error handling
+  // Format buttons handler with improved cursor position management
   const handleFormat = useCallback((command: string, value?: string) => {
     // Prevent processing multiple commands at once to avoid race conditions
     if (isProcessingCommand) return;
@@ -84,9 +106,47 @@ const Editor: React.FC<EditorProps> = ({
       if (editorRef.current) {
         editorRef.current.focus();
         
-        // Small delay to ensure focus is complete
-        setTimeout(() => {
+        // Save current cursor position
+        saveCursorPosition();
+        
+        // Special handling for code block
+        if (command === 'formatBlock' && value === '<pre>') {
+          document.execCommand('formatBlock', false, value);
+          
+          // After creating pre tag, we need to add code tag inside for proper code formatting
+          // Get the current selection
+          const selection = window.getSelection();
+          if (selection && selection.rangeCount > 0) {
+            const range = selection.getRangeAt(0);
+            const preElement = range.startContainer.parentElement?.closest('pre');
+            
+            if (preElement) {
+              // Create a code element
+              const codeElement = document.createElement('code');
+              
+              // Move pre content to code element
+              while (preElement.firstChild) {
+                codeElement.appendChild(preElement.firstChild);
+              }
+              
+              // Add code element to pre
+              preElement.appendChild(codeElement);
+              
+              // Add some default styling
+              preElement.style.backgroundColor = '#f5f5f5';
+              preElement.style.padding = '1rem';
+              preElement.style.borderRadius = '4px';
+              preElement.style.overflow = 'auto';
+            }
+          }
+        } else {
+          // Execute standard command
           document.execCommand(command, false, value);
+        }
+        
+        // Restore cursor position
+        setTimeout(() => {
+          restoreCursorPosition();
           
           // Get updated content
           if (editorRef.current) {
@@ -114,16 +174,16 @@ const Editor: React.FC<EditorProps> = ({
         variant: "destructive"
       });
     }
-  }, [isProcessingCommand, historyStack, historyIndex, addToHistory]);
+  }, [isProcessingCommand, historyStack, historyIndex, addToHistory, saveCursorPosition, restoreCursorPosition]);
 
   const handleUndo = useCallback(() => {
     if (historyIndex > 0) {
       const newIndex = historyIndex - 1;
       setHistoryIndex(newIndex);
-      setContent(historyStack[newIndex]);
       
       if (editorRef.current) {
         editorRef.current.innerHTML = historyStack[newIndex];
+        setContent(historyStack[newIndex]);
       }
     }
   }, [historyIndex, historyStack]);
@@ -132,15 +192,18 @@ const Editor: React.FC<EditorProps> = ({
     if (historyIndex < historyStack.length - 1) {
       const newIndex = historyIndex + 1;
       setHistoryIndex(newIndex);
-      setContent(historyStack[newIndex]);
       
       if (editorRef.current) {
         editorRef.current.innerHTML = historyStack[newIndex];
+        setContent(historyStack[newIndex]);
       }
     }
   }, [historyIndex, historyStack]);
 
   const handleImageUpload = useCallback(() => {
+    // Save current cursor position before opening dialog
+    saveCursorPosition();
+    
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
@@ -153,6 +216,9 @@ const Editor: React.FC<EditorProps> = ({
         reader.onload = () => {
           // Ensure focus before executing command
           editorRef.current?.focus();
+          
+          // Restore cursor position
+          restoreCursorPosition();
           
           setTimeout(() => {
             document.execCommand('insertHTML', false, `<img src="${reader.result}" alt="Uploaded image" style="max-width: 100%;" />`);
@@ -169,13 +235,19 @@ const Editor: React.FC<EditorProps> = ({
     };
     
     input.click();
-  }, [addToHistory]);
+  }, [addToHistory, saveCursorPosition, restoreCursorPosition]);
   
   const handleLinkInsert = useCallback(() => {
+    // Save current cursor position before prompting
+    saveCursorPosition();
+    
     const url = prompt("Enter URL:", "https://");
     if (url) {
       // Ensure focus before executing command
       editorRef.current?.focus();
+      
+      // Restore cursor position
+      restoreCursorPosition();
       
       setTimeout(() => {
         document.execCommand('createLink', false, url);
@@ -188,35 +260,42 @@ const Editor: React.FC<EditorProps> = ({
         }
       }, 10);
     }
-  }, [addToHistory]);
+  }, [addToHistory, saveCursorPosition, restoreCursorPosition]);
   
   // Handle content changes with improved focus handling
   const handleContentChange = useCallback(() => {
     if (!editorRef.current) return;
     
     const newContent = editorRef.current.innerHTML;
+    
+    // Only update if content actually changed
     if (newContent === content) return;
     
     setContent(newContent);
     
     // Debounced history addition (only add to history if there's a 500ms pause)
     const timer = setTimeout(() => {
-      addToHistory(newContent);
+      if (newContent !== historyStack[historyIndex]) {
+        addToHistory(newContent);
+      }
     }, 500);
     
     return () => clearTimeout(timer);
-  }, [content, addToHistory]);
+  }, [content, historyStack, historyIndex, addToHistory]);
   
-  // Simulate auto-save functionality with delay
+  // Auto-save functionality
   useEffect(() => {
+    // Don't trigger save if content hasn't changed from initial
     if (content === initialContent) return;
     
     const saveTimer = setTimeout(() => {
       setIsSaving(true);
       
-      // Simulation of API call
+      // Notify parent component of content change
+      onContentChange?.(content);
+      
+      // Simulate API delay
       setTimeout(() => {
-        onContentChange?.(content);
         setIsSaving(false);
         setLastSaved(new Date());
       }, 500);
@@ -388,6 +467,14 @@ const Editor: React.FC<EditorProps> = ({
           suppressContentEditableWarning
           onInput={handleContentChange}
           dangerouslySetInnerHTML={{ __html: content }}
+          spellCheck="false"
+          data-gramm="false"
+          onClick={saveCursorPosition}
+          onKeyUp={saveCursorPosition}
+          onBlur={() => {
+            // Wait a little before saving since we might be refocusing elsewhere
+            setTimeout(saveCursorPosition, 50);
+          }}
         />
       </div>
     </div>
