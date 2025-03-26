@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useNotebooks } from '@/hooks/useNotebooks';
@@ -16,50 +17,54 @@ import {
 import Button from '@/components/common/Button';
 import Input from '@/components/common/Input';
 
+// Define the page types with strict typing
 const pageTypes = [
   {
-    id: 'richtext',
+    id: 'richtext' as const,
     name: 'Rich Text',
     description: 'A document with formatted text, images, and more',
     icon: PenSquare
   },
   {
-    id: 'drawio',
+    id: 'drawio' as const,
     name: 'Draw.io',
     description: 'Create diagrams, flowcharts, and mind maps',
     icon: BrainCircuit
   },
   {
-    id: 'flatpage',
+    id: 'flatpage' as const,
     name: 'Flat Page',
     description: 'A simple flat document with minimal formatting',
     icon: FileText
   },
   {
-    id: 'flatpagev2',
+    id: 'flatpagev2' as const,
     name: 'Flat Page V2',
     description: 'Enhanced flat page with additional features',
     icon: Layout
   },
   {
-    id: 'pagegroup',
+    id: 'pagegroup' as const,
     name: 'Page Group',
     description: 'Group multiple pages together',
     icon: Layers
   },
   {
-    id: 'spreadsheet',
+    id: 'spreadsheet' as const,
     name: 'Spreadsheet',
     description: 'Create tables with calculations',
     icon: FileSpreadsheet
   },
   {
-    id: 'table',
+    id: 'table' as const,
     name: 'Table',
     description: 'Simple table for structured data',
     icon: Table
   }
 ];
+
+// Union type based on the pageTypes array
+type PageType = typeof pageTypes[number]['id'];
 
 const NewPage = () => {
   const { notebookId, sectionId } = useParams<{ notebookId: string; sectionId: string }>();
@@ -67,7 +72,7 @@ const NewPage = () => {
   const { createPage, getNotebookById, getSectionById } = useNotebooks();
   
   const [title, setTitle] = useState('');
-  const [selectedType, setSelectedType] = useState<string>('richtext');
+  const [selectedType, setSelectedType] = useState<PageType>('richtext');
   
   const notebook = notebookId ? getNotebookById(notebookId) : null;
   const section = notebookId && sectionId ? getSectionById(notebookId, sectionId) : null;
@@ -91,7 +96,7 @@ const NewPage = () => {
       return;
     }
     
-    const newPage = await createPage(notebookId, sectionId, title.trim(), selectedType as any);
+    const newPage = await createPage(notebookId, sectionId, title.trim(), selectedType);
     toast({
       title: "Page created",
       description: `${title} has been created successfully`
@@ -133,9 +138,9 @@ const NewPage = () => {
           <div className="max-w-4xl mx-auto">
             <div className="mb-6">
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <span>{notebook.title}</span>
+                <span>{notebook?.title}</span>
                 <span>/</span>
-                <span>{section.title}</span>
+                <span>{section?.title}</span>
                 <span>/</span>
                 <span>New Page</span>
               </div>

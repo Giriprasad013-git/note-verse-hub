@@ -28,6 +28,12 @@ export interface Notebook {
   createdAt: string;
 }
 
+// Helper function to ensure page type is valid
+const ensureValidPageType = (type: string | null): Page['type'] => {
+  const validTypes: Page['type'][] = ['richtext', 'drawio', 'flatpage', 'flatpagev2', 'pagegroup', 'spreadsheet', 'table'];
+  return (type && validTypes.includes(type as Page['type'])) ? (type as Page['type']) : 'richtext';
+};
+
 export function useNotebooks() {
   const [notebooks, setNotebooks] = useState<Notebook[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -78,7 +84,7 @@ export function useNotebooks() {
                     lastEdited: formatTimestamp(page.last_edited_at),
                     createdAt: formatTimestamp(page.created_at),
                     tags: page.tags || [],
-                    type: (page.type || 'richtext') as Page['type']
+                    type: ensureValidPageType(page.type)
                   }));
                   
                   return {
@@ -139,7 +145,18 @@ export function useNotebooks() {
   
   // Fallback to mock data if Supabase fails
   const loadMockData = () => {
-    setNotebooks(MOCK_NOTEBOOKS);
+    const mockedNotebooks = MOCK_NOTEBOOKS.map(notebook => ({
+      ...notebook,
+      sections: notebook.sections.map(section => ({
+        ...section,
+        pages: section.pages.map(page => ({
+          ...page,
+          type: ensureValidPageType(page.type)
+        }))
+      }))
+    }));
+    
+    setNotebooks(mockedNotebooks);
   };
 
   // Memoize these functions to prevent recreation on each render
@@ -469,6 +486,9 @@ export function useNotebooks() {
 
   const createPage = async (notebookId: string, sectionId: string, title: string, type: Page['type'] = 'richtext') => {
     try {
+      // Validate the page type
+      const validType = ensureValidPageType(type);
+      
       // Generate unique ID with current timestamp
       const pageId = `page-${Date.now()}`;
       const now = new Date().toISOString();
@@ -491,7 +511,7 @@ export function useNotebooks() {
           title,
           content: '',
           section_id: sectionId,
-          type,
+          type: validType,
           created_at: now,
           last_edited_at: now,
           tags: [],
@@ -513,7 +533,7 @@ export function useNotebooks() {
         lastEdited: 'just now',
         createdAt: formatTimestamp(now),
         tags: [],
-        type
+        type: validType
       };
       
       // Update the notebooks state with the new page
