@@ -14,13 +14,12 @@ import {
 import Header from '@/components/layout/Header';
 import Sidebar from '@/components/layout/Sidebar';
 import Button from '@/components/common/Button';
-import Editor from '@/components/editor/Editor';
 import Input from '@/components/common/Input';
+import { Editor } from '@/components/editor/EditorTypes';
 import { useNotebooks } from '@/hooks/useNotebooks';
 import { toast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { getPageTypeIcon, getPageTypeName } from '@/components/editor/EditorTypes';
 
@@ -31,7 +30,6 @@ const PageView = () => {
   const { getPageById, updatePageContent, updatePageTitle, updatePageTags, deletePage, isLoading } = useNotebooks();
   
   const pageData = pageId ? getPageById(pageId) : null;
-  const [content, setContent] = useState(pageData?.page.content || '');
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [title, setTitle] = useState(pageData?.page.title || '');
   const [tags, setTags] = useState<string[]>(pageData?.page.tags || []);
@@ -42,7 +40,6 @@ const PageView = () => {
   
   useEffect(() => {
     if (pageData) {
-      setContent(pageData.page.content);
       setTitle(pageData.page.title);
       setTags(pageData.page.tags || []);
     }
@@ -58,9 +55,7 @@ const PageView = () => {
     }
   }, [isEditingTitle]);
   
-  const handleContentChange = (newContent: string) => {
-    setContent(newContent);
-    
+  const handleContentChange = (newContent: string) => {    
     if (pageId) {
       setAutoSaveStatus('saving');
       updatePageContent(pageId, newContent)
@@ -204,7 +199,7 @@ const PageView = () => {
       </head>
       <body>
         <h1>${pageData.page.title}</h1>
-        ${content}
+        ${pageData.page.content}
       </body>
       </html>
     `;
