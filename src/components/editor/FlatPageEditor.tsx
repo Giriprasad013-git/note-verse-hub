@@ -1,6 +1,6 @@
 
-import React, { useState, useEffect } from 'react';
-import { FileText, Save } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { FileText, Save, Copy, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Button from '@/components/common/Button';
 import { Textarea } from '@/components/ui/textarea';
@@ -21,17 +21,28 @@ const FlatPageEditor: React.FC<FlatPageEditorProps> = ({
 }) => {
   const [content, setContent] = useState(initialContent);
   const [isEditing, setIsEditing] = useState(false);
+  const [wordCount, setWordCount] = useState(0);
+  const [charCount, setCharCount] = useState(0);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   
   // Initialize content when initialContent changes
   useEffect(() => {
     if (initialContent && !isEditing) {
       setContent(initialContent);
+      updateCounts(initialContent);
     }
   }, [initialContent, isEditing]);
   
+  const updateCounts = (text: string) => {
+    setCharCount(text.length);
+    setWordCount(text.trim() === '' ? 0 : text.trim().split(/\s+/).length);
+  };
+  
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newContent = e.target.value;
     setIsEditing(true);
-    setContent(e.target.value);
+    setContent(newContent);
+    updateCounts(newContent);
   };
   
   const handleSave = () => {
@@ -45,6 +56,37 @@ const FlatPageEditor: React.FC<FlatPageEditorProps> = ({
     }
   };
   
+  const handleCopy = () => {
+    navigator.clipboard.writeText(content);
+    toast({
+      title: "Content copied",
+      description: "Document content copied to clipboard"
+    });
+  };
+  
+  const handleDownload = () => {
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `document-${pageId}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    toast({
+      title: "Document downloaded",
+      description: "Your document has been downloaded as a text file"
+    });
+  };
+  
+  const focusTextarea = () => {
+    if (textareaRef.current) {
+      textareaRef.current.focus();
+    }
+  };
+  
   return (
     <div className={cn("flex flex-col h-full", className)}>
       <div className="border-b p-2 flex items-center justify-between bg-background">
@@ -53,19 +95,35 @@ const FlatPageEditor: React.FC<FlatPageEditorProps> = ({
           <span className="font-medium">Flat Page Editor</span>
         </div>
         
-        <Button onClick={handleSave} disabled={!isEditing}>
-          <Save className="h-4 w-4 mr-2" />
-          Save
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={handleCopy} title="Copy to clipboard">
+            <Copy className="h-4 w-4" />
+          </Button>
+          
+          <Button variant="ghost" size="sm" onClick={handleDownload} title="Download as text file">
+            <Download className="h-4 w-4" />
+          </Button>
+          
+          <Button onClick={handleSave} disabled={!isEditing} size="sm">
+            <Save className="h-4 w-4 mr-2" />
+            Save
+          </Button>
+        </div>
       </div>
       
-      <div className="flex-1 p-4 overflow-auto">
+      <div className="flex-1 p-4 overflow-auto" onClick={focusTextarea}>
         <Textarea
+          ref={textareaRef}
           value={content}
           onChange={handleChange}
           placeholder="Start typing your content here..."
           className="w-full h-full min-h-[calc(100vh-12rem)] p-4 text-base"
         />
+      </div>
+      
+      <div className="border-t p-2 flex justify-between text-xs text-muted-foreground">
+        <div>Characters: {charCount}</div>
+        <div>Words: {wordCount}</div>
       </div>
     </div>
   );
