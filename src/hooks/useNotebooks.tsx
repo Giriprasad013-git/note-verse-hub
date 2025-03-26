@@ -78,7 +78,7 @@ export function useNotebooks() {
                     lastEdited: formatTimestamp(page.last_edited_at),
                     createdAt: formatTimestamp(page.created_at),
                     tags: page.tags || [],
-                    type: page.type as Page['type']
+                    type: (page.type || 'richtext') as Page['type']
                   }));
                   
                   return {

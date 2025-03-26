@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useNotebooks } from '@/hooks/useNotebooks';
@@ -73,7 +72,7 @@ const NewPage = () => {
   const notebook = notebookId ? getNotebookById(notebookId) : null;
   const section = notebookId && sectionId ? getSectionById(notebookId, sectionId) : null;
   
-  const handleCreatePage = () => {
+  const handleCreatePage = async () => {
     if (!title.trim()) {
       toast({
         title: "Title required",
@@ -92,13 +91,13 @@ const NewPage = () => {
       return;
     }
     
-    const page = createPage(notebookId, sectionId, title.trim(), selectedType as any);
+    const newPage = await createPage(notebookId, sectionId, title.trim(), selectedType as any);
     toast({
       title: "Page created",
       description: `${title} has been created successfully`
     });
     
-    navigate(`/page/${page.id}`);
+    navigate(`/page/${newPage.id}`);
   };
   
   if (!notebook || !section) {
