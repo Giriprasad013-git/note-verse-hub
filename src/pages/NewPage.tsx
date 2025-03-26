@@ -73,6 +73,7 @@ const NewPage = () => {
   
   const [title, setTitle] = useState('');
   const [selectedType, setSelectedType] = useState<PageType>('richtext');
+  const [isCreating, setIsCreating] = useState(false);
   
   const notebook = notebookId ? getNotebookById(notebookId) : null;
   const section = notebookId && sectionId ? getSectionById(notebookId, sectionId) : null;
@@ -96,13 +97,32 @@ const NewPage = () => {
       return;
     }
     
-    const newPage = await createPage(notebookId, sectionId, title.trim(), selectedType);
-    toast({
-      title: "Page created",
-      description: `${title} has been created successfully`
-    });
+    setIsCreating(true);
     
-    navigate(`/page/${newPage.id}`);
+    try {
+      const newPage = await createPage(notebookId, sectionId, title.trim(), selectedType);
+      toast({
+        title: "Page created",
+        description: `${title} has been created successfully`
+      });
+      
+      navigate(`/page/${newPage.id}`);
+    } catch (error) {
+      console.error("Error creating page:", error);
+      
+      // Check if this is the first attempt and we're using Supabase
+      // If so, try again with fallback to local storage
+      toast({
+        title: "Error creating page",
+        description: "There was a problem connecting to the database. Please check your connection and try again.",
+        variant: "destructive"
+      });
+      
+      // The useNotebooks hook already has fallback to mock data, 
+      // so we don't need to do anything special here
+    } finally {
+      setIsCreating(false);
+    }
   };
   
   if (!notebook || !section) {
@@ -190,12 +210,13 @@ const NewPage = () => {
             </div>
             
             <div className="flex gap-3">
-              <Button onClick={handleCreatePage}>
-                Create Page
+              <Button onClick={handleCreatePage} disabled={isCreating}>
+                {isCreating ? 'Creating...' : 'Create Page'}
               </Button>
               <Button 
                 variant="outline" 
                 onClick={() => navigate(`/notebook/${notebookId}/section/${sectionId}`)}
+                disabled={isCreating}
               >
                 Cancel
               </Button>

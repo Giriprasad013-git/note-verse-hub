@@ -17,7 +17,31 @@ if (!supabaseAnonKey) {
 
 // Provide fallback values for development/testing only
 // In production, these should come from actual environment variables
-const url = supabaseUrl || 'https://your-project-url.supabase.co';
-const anonKey = supabaseAnonKey || 'your-anon-key';
+const url = supabaseUrl || 'https://placeholder-project.supabase.co';
+const anonKey = supabaseAnonKey || 'placeholder-anon-key';
 
-export const supabase = createClient<Database>(url, anonKey);
+// Set a flag to track if we're using real Supabase or mock data
+export const isUsingMockData = !supabaseUrl || !supabaseAnonKey;
+
+try {
+  // Create the Supabase client
+  export const supabase = createClient<Database>(url, anonKey);
+  
+  if (isUsingMockData) {
+    console.warn('Using mock Supabase client. Real database operations will fail.');
+  }
+} catch (error) {
+  console.error('Error initializing Supabase client:', error);
+  // Create a mock client that will gracefully fail
+  export const supabase = {
+    from: () => ({
+      select: () => Promise.reject(new Error('Supabase client not initialized')),
+      insert: () => Promise.reject(new Error('Supabase client not initialized')),
+      update: () => Promise.reject(new Error('Supabase client not initialized')),
+      delete: () => Promise.reject(new Error('Supabase client not initialized')),
+      eq: () => ({
+        order: () => Promise.reject(new Error('Supabase client not initialized')),
+      }),
+    }),
+  } as any;
+}
