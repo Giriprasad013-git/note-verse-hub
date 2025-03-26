@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { 
@@ -27,14 +26,13 @@ const PageView = () => {
   const { pageId } = useParams<{ pageId: string }>();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
-  const { getPageById, updatePageContent, updatePageTitle, updatePageTags, deletePage, isLoading } = useNotebooks();
+  const { getPageById, updatePageContent, updatePageTitle, updatePageTags, deletePage, isLoading, autoSaveStatus } = useNotebooks();
   
   const pageData = pageId ? getPageById(pageId) : null;
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [title, setTitle] = useState(pageData?.page.title || '');
   const [tags, setTags] = useState<string[]>(pageData?.page.tags || []);
   const [newTag, setNewTag] = useState('');
-  const [autoSaveStatus, setAutoSaveStatus] = useState<'saved' | 'saving' | 'error'>('saved');
   const [showSidebar, setShowSidebar] = useState(!isMobile);
   const titleInputRef = useRef<HTMLInputElement>(null);
   
@@ -57,13 +55,8 @@ const PageView = () => {
   
   const handleContentChange = (newContent: string) => {    
     if (pageId) {
-      setAutoSaveStatus('saving');
       updatePageContent(pageId, newContent)
-        .then(() => {
-          setAutoSaveStatus('saved');
-        })
         .catch(() => {
-          setAutoSaveStatus('error');
           toast({
             title: "Error saving content",
             description: "There was an issue saving your changes. Please try again.",

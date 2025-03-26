@@ -1,6 +1,6 @@
-
 import { useState, useEffect, useMemo } from 'react';
 import { toast } from './use-toast';
+import { supabase } from '@/lib/supabase';
 
 // Type definitions
 export interface Page {
@@ -28,8 +28,550 @@ export interface Notebook {
   createdAt: string;
 }
 
-// Mock data
-const MOCK_NOTEBOOKS: Notebook[] = [
+export function useNotebooks() {
+  const [notebooks, setNotebooks] = useState<Notebook[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [autoSaveStatus, setAutoSaveStatus] = useState<'saved' | 'saving' | 'error'>('saved');
+
+  // Load notebooks from Supabase when component mounts
+  useEffect(() => {
+    if (!isInitialized) {
+      const fetchNotebooks = async () => {
+        try {
+          setIsLoading(true);
+          
+          // Get notebooks
+          const { data: notebooksData, error: notebooksError } = await supabase
+            .from('notebooks')
+            .select('*')
+            .order('created_at', { ascending: false });
+          
+          if (notebooksError) throw notebooksError;
+          
+          // Process each notebook to get its sections and pages
+          const notebooksWithSections = await Promise.all(
+            (notebooksData || []).map(async (notebook) => {
+              const { data: sectionsData, error: sectionsError } = await supabase
+                .from('sections')
+                .select('*')
+                .eq('notebook_id', notebook.id)
+                .order('order', { ascending: true });
+              
+              if (sectionsError) throw sectionsError;
+              
+              const sections = await Promise.all(
+                (sectionsData || []).map(async (section) => {
+                  const { data: pagesData, error: pagesError } = await supabase
+                    .from('pages')
+                    .select('*')
+                    .eq('section_id', section.id)
+                    .order('order', { ascending: true });
+                  
+                  if (pagesError) throw pagesError;
+                  
+                  const pages = (pagesData || []).map(page => ({
+                    id: page.id,
+                    title: page.title,
+                    content: page.content || '',
+                    lastEdited: formatTimestamp(page.last_edited_at),
+                    createdAt: formatTimestamp(page.created_at),
+                    tags: page.tags || [],
+                    type: page.type as Page['type']
+                  }));
+                  
+                  return {
+                    id: section.id,
+                    title: section.title,
+                    pages
+                  };
+                })
+              );
+              
+              return {
+                id: notebook.id,
+                title: notebook.title,
+                description: notebook.description,
+                sections,
+                lastEdited: formatTimestamp(notebook.last_edited_at),
+                createdAt: formatTimestamp(notebook.created_at)
+              };
+            })
+          );
+          
+          setNotebooks(notebooksWithSections);
+          setError(null);
+        } catch (err) {
+          console.error('Error fetching notebooks:', err);
+          setError('Failed to fetch notebooks');
+          
+          // Use mock data as fallback
+          loadMockData();
+        } finally {
+          setIsLoading(false);
+          setIsInitialized(true);
+        }
+      };
+      
+      fetchNotebooks();
+    }
+  }, [isInitialized]);
+  
+  // Helper function to format timestamps
+  const formatTimestamp = (timestamp: string) => {
+    if (!timestamp) return '';
+    
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    
+    if (diffMins < 1) return 'just now';
+    if (diffMins < 60) return `${diffMins} minutes ago`;
+    if (diffHours < 24) return `${diffHours} hours ago`;
+    if (diffDays < 7) return `${diffDays} days ago`;
+    
+    return date.toLocaleDateString();
+  };
+  
+  // Fallback to mock data if Supabase fails
+  const loadMockData = () => {
+    setNotebooks(MOCK_NOTEBOOKS);
+  };
+
+  // Memoize these functions to prevent recreation on each render
+  const getNotebookById = useMemo(() => {
+    return (id: string) => {
+      return notebooks.find(notebook => notebook.id === id) || null;
+    };
+  }, [notebooks]);
+
+  const getSectionById = useMemo(() => {
+    return (notebookId: string, sectionId: string) => {
+      const notebook = getNotebookById(notebookId);
+      return notebook?.sections.find(section => section.id === sectionId) || null;
+    };
+  }, [getNotebookById]);
+
+  const getPageById = useMemo(() => {
+    return (pageId: string) => {
+      for (const notebook of notebooks) {
+        for (const section of notebook.sections) {
+          const page = section.pages.find(page => page.id === pageId);
+          if (page) {
+            return { page, section, notebook };
+          }
+        }
+      }
+      return null;
+    };
+  }, [notebooks]);
+
+  const updatePageContent = async (pageId: string, newContent: string): Promise<void> => {
+    try {
+      setAutoSaveStatus('saving');
+      
+      // Update local state first for immediate UI feedback
+      setNotebooks(currentNotebooks => {
+        const updatedNotebooks = currentNotebooks.map(notebook => {
+          const updatedSections = notebook.sections.map(section => {
+            const updatedPages = section.pages.map(page => {
+              if (page.id === pageId) {
+                return {
+                  ...page, 
+                  content: newContent,
+                  lastEdited: 'just now'
+                };
+              }
+              return page;
+            });
+            return { ...section, pages: updatedPages };
+          });
+          return { ...notebook, sections: updatedSections };
+        });
+        
+        return updatedNotebooks;
+      });
+      
+      // Update in Supabase
+      const { error } = await supabase
+        .from('pages')
+        .update({ 
+          content: newContent,
+          last_edited_at: new Date().toISOString()
+        })
+        .eq('id', pageId);
+      
+      if (error) throw error;
+      
+      setAutoSaveStatus('saved');
+    } catch (error) {
+      console.error("Error updating page content:", error);
+      setAutoSaveStatus('error');
+      throw error;
+    }
+  };
+  
+  const updatePageTitle = async (pageId: string, newTitle: string): Promise<void> => {
+    try {
+      // Update local state first
+      setNotebooks(currentNotebooks => {
+        const updatedNotebooks = currentNotebooks.map(notebook => {
+          const updatedSections = notebook.sections.map(section => {
+            const updatedPages = section.pages.map(page => {
+              if (page.id === pageId) {
+                return {
+                  ...page, 
+                  title: newTitle,
+                  lastEdited: 'just now'
+                };
+              }
+              return page;
+            });
+            return { ...section, pages: updatedPages };
+          });
+          return { ...notebook, sections: updatedSections };
+        });
+        
+        return updatedNotebooks;
+      });
+      
+      // Update in Supabase
+      const { error } = await supabase
+        .from('pages')
+        .update({ 
+          title: newTitle,
+          last_edited_at: new Date().toISOString()
+        })
+        .eq('id', pageId);
+      
+      if (error) throw error;
+    } catch (error) {
+      console.error("Error updating page title:", error);
+      throw error;
+    }
+  };
+  
+  const updatePageTags = async (pageId: string, newTags: string[]): Promise<void> => {
+    try {
+      // Update local state first
+      setNotebooks(currentNotebooks => {
+        const updatedNotebooks = currentNotebooks.map(notebook => {
+          const updatedSections = notebook.sections.map(section => {
+            const updatedPages = section.pages.map(page => {
+              if (page.id === pageId) {
+                return {
+                  ...page, 
+                  tags: newTags,
+                  lastEdited: 'just now'
+                };
+              }
+              return page;
+            });
+            return { ...section, pages: updatedPages };
+          });
+          return { ...notebook, sections: updatedSections };
+        });
+        
+        return updatedNotebooks;
+      });
+      
+      // Update in Supabase
+      const { error } = await supabase
+        .from('pages')
+        .update({ 
+          tags: newTags,
+          last_edited_at: new Date().toISOString()
+        })
+        .eq('id', pageId);
+      
+      if (error) throw error;
+    } catch (error) {
+      console.error("Error updating page tags:", error);
+      throw error;
+    }
+  };
+  
+  const deletePage = async (pageId: string): Promise<void> => {
+    try {
+      // Get page info before deleting for optimistic update
+      const pageInfo = getPageById(pageId);
+      if (!pageInfo) throw new Error("Page not found");
+      
+      // Update local state first
+      setNotebooks(currentNotebooks => {
+        const updatedNotebooks = currentNotebooks.map(notebook => {
+          const updatedSections = notebook.sections.map(section => {
+            const updatedPages = section.pages.filter(page => page.id !== pageId);
+            
+            if (updatedPages.length !== section.pages.length) {
+              notebook.lastEdited = 'just now';
+            }
+            
+            return { ...section, pages: updatedPages };
+          });
+          return { ...notebook, sections: updatedSections };
+        });
+        
+        return updatedNotebooks;
+      });
+      
+      // Delete from Supabase
+      const { error } = await supabase
+        .from('pages')
+        .delete()
+        .eq('id', pageId);
+      
+      if (error) throw error;
+      
+      // Update notebook's last_edited_at
+      await supabase
+        .from('notebooks')
+        .update({ last_edited_at: new Date().toISOString() })
+        .eq('id', pageInfo.notebook.id);
+    } catch (error) {
+      console.error("Error deleting page:", error);
+      throw error;
+    }
+  };
+
+  const createNotebook = async (title: string, description: string) => {
+    try {
+      // Create a unique ID
+      const id = `nb-${Date.now()}`;
+      const now = new Date().toISOString();
+      
+      // First create notebook in Supabase
+      const { error: notebookError } = await supabase
+        .from('notebooks')
+        .insert({
+          id,
+          title,
+          description,
+          created_at: now,
+          last_edited_at: now,
+          user_id: 'anonymous' // Replace with actual user ID when auth is implemented
+        });
+      
+      if (notebookError) throw notebookError;
+      
+      // Create default section
+      const sectionId = `sec-${Date.now()}`;
+      const { error: sectionError } = await supabase
+        .from('sections')
+        .insert({
+          id: sectionId,
+          title: 'Default Section',
+          notebook_id: id,
+          created_at: now,
+          order: 0
+        });
+      
+      if (sectionError) throw sectionError;
+      
+      // Update local state
+      const newNotebook: Notebook = {
+        id,
+        title,
+        description,
+        sections: [
+          {
+            id: sectionId,
+            title: 'Default Section',
+            pages: []
+          }
+        ],
+        lastEdited: 'just now',
+        createdAt: formatTimestamp(now),
+      };
+      
+      setNotebooks(prev => [...prev, newNotebook]);
+      return newNotebook;
+    } catch (error) {
+      console.error("Error creating notebook:", error);
+      toast({
+        title: "Error creating notebook",
+        description: "There was a problem creating your notebook. Please try again.",
+        variant: "destructive"
+      });
+      throw error;
+    }
+  };
+
+  const createSection = async (notebookId: string, title: string) => {
+    try {
+      const id = `sec-${Date.now()}`;
+      const now = new Date().toISOString();
+      
+      // Get current sections count for order
+      const { data, error: countError } = await supabase
+        .from('sections')
+        .select('id')
+        .eq('notebook_id', notebookId);
+      
+      if (countError) throw countError;
+      
+      const order = data?.length || 0;
+      
+      // Create section in Supabase
+      const { error } = await supabase
+        .from('sections')
+        .insert({
+          id,
+          title,
+          notebook_id: notebookId,
+          created_at: now,
+          order
+        });
+      
+      if (error) throw error;
+      
+      // Update notebook's last_edited_at
+      await supabase
+        .from('notebooks')
+        .update({ last_edited_at: now })
+        .eq('id', notebookId);
+      
+      // Update local state
+      const newSection: Section = {
+        id,
+        title,
+        pages: [],
+      };
+      
+      setNotebooks(currentNotebooks => {
+        return currentNotebooks.map(notebook => {
+          if (notebook.id === notebookId) {
+            return {
+              ...notebook,
+              sections: [...notebook.sections, newSection],
+              lastEdited: 'just now'
+            };
+          }
+          return notebook;
+        });
+      });
+      
+      return newSection;
+    } catch (error) {
+      console.error("Error creating section:", error);
+      toast({
+        title: "Error creating section",
+        description: "There was a problem creating your section. Please try again.",
+        variant: "destructive"
+      });
+      throw error;
+    }
+  };
+
+  const createPage = async (notebookId: string, sectionId: string, title: string, type: Page['type'] = 'richtext') => {
+    try {
+      // Generate unique ID with current timestamp
+      const pageId = `page-${Date.now()}`;
+      const now = new Date().toISOString();
+      
+      // Get current pages count for order
+      const { data, error: countError } = await supabase
+        .from('pages')
+        .select('id')
+        .eq('section_id', sectionId);
+      
+      if (countError) throw countError;
+      
+      const order = data?.length || 0;
+      
+      // Create page in Supabase
+      const { error } = await supabase
+        .from('pages')
+        .insert({
+          id: pageId,
+          title,
+          content: '',
+          section_id: sectionId,
+          type,
+          created_at: now,
+          last_edited_at: now,
+          tags: [],
+          order
+        });
+      
+      if (error) throw error;
+      
+      // Update notebook's last_edited_at
+      await supabase
+        .from('notebooks')
+        .update({ last_edited_at: now })
+        .eq('id', notebookId);
+      
+      const newPage: Page = {
+        id: pageId,
+        title,
+        content: '',
+        lastEdited: 'just now',
+        createdAt: formatTimestamp(now),
+        tags: [],
+        type
+      };
+      
+      // Update the notebooks state with the new page
+      setNotebooks(currentNotebooks => {
+        return currentNotebooks.map(notebook => {
+          if (notebook.id === notebookId) {
+            const updatedSections = notebook.sections.map(section => {
+              if (section.id === sectionId) {
+                return {
+                  ...section,
+                  pages: [...section.pages, newPage]
+                };
+              }
+              return section;
+            });
+            
+            return {
+              ...notebook,
+              sections: updatedSections,
+              lastEdited: 'just now'
+            };
+          }
+          return notebook;
+        });
+      });
+      
+      return newPage;
+    } catch (error) {
+      console.error("Error creating page:", error);
+      toast({
+        title: "Error creating page",
+        description: "There was a problem creating your page. Please try again.",
+        variant: "destructive"
+      });
+      throw error;
+    }
+  };
+
+  return {
+    notebooks,
+    isLoading,
+    error,
+    autoSaveStatus,
+    getNotebookById,
+    getSectionById,
+    getPageById,
+    updatePageContent,
+    updatePageTitle,
+    updatePageTags,
+    deletePage,
+    createNotebook,
+    createSection,
+    createPage
+  };
+}
+
+// Fallback mock data (will be used if Supabase connection fails)
+const MOCK_NOTEBOOKS = [
   {
     id: 'nb-1',
     title: 'Work Projects',
@@ -151,284 +693,3 @@ const MOCK_NOTEBOOKS: Notebook[] = [
     ]
   }
 ];
-
-export function useNotebooks() {
-  const [notebooks, setNotebooks] = useState<Notebook[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [isInitialized, setIsInitialized] = useState(false);
-
-  // Load data only once to fix infinite loop
-  useEffect(() => {
-    if (!isInitialized) {
-      const fetchNotebooks = async () => {
-        try {
-          setIsLoading(true);
-          await new Promise(resolve => setTimeout(resolve, 800));
-          setNotebooks(MOCK_NOTEBOOKS);
-          setError(null);
-        } catch (err) {
-          setError('Failed to fetch notebooks');
-          console.error(err);
-        } finally {
-          setIsLoading(false);
-          setIsInitialized(true);
-        }
-      };
-
-      fetchNotebooks();
-    }
-  }, [isInitialized]);
-
-  // Memoize these functions to prevent recreation on each render
-  const getNotebookById = useMemo(() => {
-    return (id: string) => {
-      return notebooks.find(notebook => notebook.id === id) || null;
-    };
-  }, [notebooks]);
-
-  const getSectionById = useMemo(() => {
-    return (notebookId: string, sectionId: string) => {
-      const notebook = getNotebookById(notebookId);
-      return notebook?.sections.find(section => section.id === sectionId) || null;
-    };
-  }, [getNotebookById]);
-
-  const getPageById = useMemo(() => {
-    return (pageId: string) => {
-      for (const notebook of notebooks) {
-        for (const section of notebook.sections) {
-          const page = section.pages.find(page => page.id === pageId);
-          if (page) {
-            return { page, section, notebook };
-          }
-        }
-      }
-      return null;
-    };
-  }, [notebooks]);
-
-  const updatePageContent = (pageId: string, newContent: string): Promise<void> => {
-    return new Promise((resolve, reject) => {
-      try {
-        setNotebooks(currentNotebooks => {
-          const updatedNotebooks = currentNotebooks.map(notebook => {
-            const updatedSections = notebook.sections.map(section => {
-              const updatedPages = section.pages.map(page => {
-                if (page.id === pageId) {
-                  return {
-                    ...page, 
-                    content: newContent,
-                    lastEdited: 'just now'
-                  };
-                }
-                return page;
-              });
-              return { ...section, pages: updatedPages };
-            });
-            return { ...notebook, sections: updatedSections };
-          });
-          
-          return updatedNotebooks;
-        });
-        
-        setTimeout(resolve, 300);
-      } catch (error) {
-        console.error("Error updating page content:", error);
-        reject(error);
-      }
-    });
-  };
-  
-  const updatePageTitle = (pageId: string, newTitle: string): Promise<void> => {
-    return new Promise((resolve, reject) => {
-      try {
-        setNotebooks(currentNotebooks => {
-          const updatedNotebooks = currentNotebooks.map(notebook => {
-            const updatedSections = notebook.sections.map(section => {
-              const updatedPages = section.pages.map(page => {
-                if (page.id === pageId) {
-                  return {
-                    ...page, 
-                    title: newTitle,
-                    lastEdited: 'just now'
-                  };
-                }
-                return page;
-              });
-              return { ...section, pages: updatedPages };
-            });
-            return { ...notebook, sections: updatedSections };
-          });
-          
-          return updatedNotebooks;
-        });
-        
-        setTimeout(resolve, 300);
-      } catch (error) {
-        console.error("Error updating page title:", error);
-        reject(error);
-      }
-    });
-  };
-  
-  const updatePageTags = (pageId: string, newTags: string[]): Promise<void> => {
-    return new Promise((resolve, reject) => {
-      try {
-        setNotebooks(currentNotebooks => {
-          const updatedNotebooks = currentNotebooks.map(notebook => {
-            const updatedSections = notebook.sections.map(section => {
-              const updatedPages = section.pages.map(page => {
-                if (page.id === pageId) {
-                  return {
-                    ...page, 
-                    tags: newTags,
-                    lastEdited: 'just now'
-                  };
-                }
-                return page;
-              });
-              return { ...section, pages: updatedPages };
-            });
-            return { ...notebook, sections: updatedSections };
-          });
-          
-          return updatedNotebooks;
-        });
-        
-        setTimeout(resolve, 300);
-      } catch (error) {
-        console.error("Error updating page tags:", error);
-        reject(error);
-      }
-    });
-  };
-  
-  const deletePage = (pageId: string): Promise<void> => {
-    return new Promise((resolve, reject) => {
-      try {
-        setNotebooks(currentNotebooks => {
-          const updatedNotebooks = currentNotebooks.map(notebook => {
-            const updatedSections = notebook.sections.map(section => {
-              const updatedPages = section.pages.filter(page => page.id !== pageId);
-              
-              if (updatedPages.length !== section.pages.length) {
-                notebook.lastEdited = 'just now';
-              }
-              
-              return { ...section, pages: updatedPages };
-            });
-            return { ...notebook, sections: updatedSections };
-          });
-          
-          return updatedNotebooks;
-        });
-        
-        setTimeout(resolve, 300);
-      } catch (error) {
-        console.error("Error deleting page:", error);
-        reject(error);
-      }
-    });
-  };
-
-  const createNotebook = (title: string, description: string) => {
-    const newNotebook: Notebook = {
-      id: `nb-${Date.now()}`,
-      title,
-      description,
-      sections: [
-        {
-          id: `sec-${Date.now()}`,
-          title: 'Default Section',
-          pages: []
-        }
-      ],
-      lastEdited: 'just now',
-      createdAt: new Date().toISOString().split('T')[0],
-    };
-    
-    setNotebooks(prev => [...prev, newNotebook]);
-    return newNotebook;
-  };
-
-  const createSection = (notebookId: string, title: string) => {
-    const newSection: Section = {
-      id: `sec-${Date.now()}`,
-      title,
-      pages: [],
-    };
-    
-    setNotebooks(currentNotebooks => {
-      return currentNotebooks.map(notebook => {
-        if (notebook.id === notebookId) {
-          return {
-            ...notebook,
-            sections: [...notebook.sections, newSection],
-            lastEdited: 'just now'
-          };
-        }
-        return notebook;
-      });
-    });
-    
-    return newSection;
-  };
-
-  const createPage = (notebookId: string, sectionId: string, title: string, type: Page['type'] = 'richtext') => {
-    // Generate unique ID with current timestamp
-    const pageId = `page-${Date.now()}`;
-    
-    const newPage: Page = {
-      id: pageId,
-      title,
-      content: '',
-      lastEdited: 'just now',
-      createdAt: new Date().toISOString().split('T')[0],
-      tags: [],
-      type
-    };
-    
-    // Update the notebooks state with the new page
-    setNotebooks(currentNotebooks => {
-      return currentNotebooks.map(notebook => {
-        if (notebook.id === notebookId) {
-          const updatedSections = notebook.sections.map(section => {
-            if (section.id === sectionId) {
-              return {
-                ...section,
-                pages: [...section.pages, newPage]
-              };
-            }
-            return section;
-          });
-          
-          return {
-            ...notebook,
-            sections: updatedSections,
-            lastEdited: 'just now'
-          };
-        }
-        return notebook;
-      });
-    });
-    
-    return newPage;
-  };
-
-  return {
-    notebooks,
-    isLoading,
-    error,
-    getNotebookById,
-    getSectionById,
-    getPageById,
-    updatePageContent,
-    updatePageTitle,
-    updatePageTags,
-    deletePage,
-    createNotebook,
-    createSection,
-    createPage
-  };
-}
