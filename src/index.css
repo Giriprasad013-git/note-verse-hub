@@ -184,3 +184,73 @@
   user-select: none;
   pointer-events: none;
 }
+
+/* Additional styles for editor elements */
+[contenteditable] h1 {
+  font-size: 2rem !important;
+  font-weight: bold !important;
+  margin-top: 1.5rem !important;
+  margin-bottom: 1rem !important;
+  line-height: 1.2 !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+[contenteditable] h2 {
+  font-size: 1.5rem !important;
+  font-weight: bold !important;
+  margin-top: 1.25rem !important;
+  margin-bottom: 0.75rem !important;
+  line-height: 1.3 !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+[contenteditable] h3 {
+  font-size: 1.25rem !important;
+  font-weight: bold !important;
+  margin-top: 1rem !important;
+  margin-bottom: 0.5rem !important;
+  line-height: 1.4 !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+[contenteditable] ul {
+  list-style-type: disc !important;
+  margin-left: 1.5rem !important;
+  margin-bottom: 1rem !important;
+  padding-left: 0.5rem !important;
+}
+
+[contenteditable] ol {
+  list-style-type: decimal !important;
+  margin-left: 1.5rem !important;
+  margin-bottom: 1rem !important;
+  padding-left: 0.5rem !important;
+}
+
+[contenteditable] li {
+  margin-bottom: 0.25rem !important;
+}
+
+[contenteditable] blockquote {
+  border-left: 3px solid hsl(var(--muted)) !important;
+  padding-left: 1rem !important;
+  margin: 1rem 0 !important;
+  font-style: italic !important;
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+[contenteditable] pre {
+  background-color: hsl(var(--muted)) !important;
+  padding: 1rem !important;
+  border-radius: 0.25rem !important;
+  overflow-x: auto !important;
+  margin: 1rem 0 !important;
+}
+
+[contenteditable] code {
+  font-family: monospace !important;
+  background-color: hsl(var(--muted)) !important;
+  padding: 0.2rem 0.4rem !important;
+  border-radius: 0.25rem !important;
+  font-size: 0.9em !important;
+}

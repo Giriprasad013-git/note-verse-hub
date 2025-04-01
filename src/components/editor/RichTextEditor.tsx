@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Clock, Bold, Italic, List, ListOrdered, Link as LinkIcon,
@@ -81,6 +80,9 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
         setHistoryStack([initialContent]);
         setHistoryIndex(0);
         
+        // Apply appropriate styling to HTML elements
+        applyStylesToContent(editorRef.current);
+        
         // Restore cursor and clear flag after a short delay
         setTimeout(() => {
           restoreCursorPosition();
@@ -89,6 +91,38 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
       }
     }
   }, [initialContent, saveCursorPosition, restoreCursorPosition]);
+  
+  // Function to apply styles to HTML elements in the editor
+  const applyStylesToContent = (container: HTMLElement) => {
+    // Apply styles to headings
+    container.querySelectorAll('h1').forEach(el => {
+      el.classList.add('text-3xl', 'font-bold', 'mt-6', 'mb-4');
+    });
+    container.querySelectorAll('h2').forEach(el => {
+      el.classList.add('text-2xl', 'font-bold', 'mt-5', 'mb-3');
+    });
+    container.querySelectorAll('h3').forEach(el => {
+      el.classList.add('text-xl', 'font-bold', 'mt-4', 'mb-2');
+    });
+    
+    // Apply styles to lists
+    container.querySelectorAll('ul').forEach(el => {
+      el.classList.add('list-disc', 'ml-6', 'mb-4');
+    });
+    container.querySelectorAll('ol').forEach(el => {
+      el.classList.add('list-decimal', 'ml-6', 'mb-4');
+    });
+    
+    // Apply styles to blockquotes
+    container.querySelectorAll('blockquote').forEach(el => {
+      el.classList.add('border-l-4', 'border-muted', 'pl-4', 'italic', 'my-4');
+    });
+    
+    // Apply styles to code blocks
+    container.querySelectorAll('pre').forEach(el => {
+      el.classList.add('bg-muted', 'p-4', 'rounded', 'my-4', 'overflow-auto');
+    });
+  };
   
   // Ensure editor is focused to allow typing
   useEffect(() => {
@@ -137,7 +171,6 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
           document.execCommand('formatBlock', false, value);
           
           // After creating pre tag, we need to add code tag inside for proper code formatting
-          // Get the current selection
           const selection = window.getSelection();
           if (selection && selection.rangeCount > 0) {
             const range = selection.getRangeAt(0);
@@ -155,29 +188,64 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
               // Add code element to pre
               preElement.appendChild(codeElement);
               
-              // Add some default styling
-              preElement.style.backgroundColor = '#f5f5f5';
-              preElement.style.padding = '1rem';
-              preElement.style.borderRadius = '4px';
-              preElement.style.overflow = 'auto';
-              preElement.style.fontFamily = 'monospace';
-              preElement.style.fontSize = '0.9em';
-              preElement.style.display = 'block';
-              preElement.style.whiteSpace = 'pre-wrap';
-              preElement.style.wordBreak = 'break-all';
+              // Add styling classes
+              preElement.classList.add('bg-muted', 'p-4', 'rounded', 'my-4', 'overflow-auto', 'font-mono', 'text-sm');
             }
           }
+        } else if (command === 'formatBlock' && (value === '<h1>' || value === '<h2>' || value === '<h3>')) {
+          // Special handling for headings to ensure they're visible
+          document.execCommand(command, false, value);
+          
+          // Apply appropriate styling based on heading level
+          const selection = window.getSelection();
+          if (selection && selection.rangeCount > 0) {
+            const range = selection.getRangeAt(0);
+            const headingElement = range.startContainer.parentElement?.closest(value.replace(/[<>]/g, ''));
+            
+            if (headingElement) {
+              if (value === '<h1>') {
+                headingElement.classList.add('text-3xl', 'font-bold', 'mt-6', 'mb-4');
+              } else if (value === '<h2>') {
+                headingElement.classList.add('text-2xl', 'font-bold', 'mt-5', 'mb-3');
+              } else if (value === '<h3>') {
+                headingElement.classList.add('text-xl', 'font-bold', 'mt-4', 'mb-2');
+              }
+            }
+          }
+        } else if (command === 'insertUnorderedList' || command === 'insertOrderedList') {
+          // Special handling for lists
+          document.execCommand(command, false, value);
+          
+          // Apply styling to created list
+          setTimeout(() => {
+            if (editorRef.current) {
+              const lists = command === 'insertUnorderedList' 
+                ? editorRef.current.querySelectorAll('ul') 
+                : editorRef.current.querySelectorAll('ol');
+              
+              lists.forEach(list => {
+                if (command === 'insertUnorderedList') {
+                  list.classList.add('list-disc', 'ml-6', 'mb-4');
+                } else {
+                  list.classList.add('list-decimal', 'ml-6', 'mb-4');
+                }
+              });
+            }
+          }, 10);
         } else {
           // Execute standard command
           document.execCommand(command, false, value);
         }
         
-        // Restore cursor position
+        // Restore cursor position and apply styles
         setTimeout(() => {
           restoreCursorPosition();
           
-          // Get updated content
+          // Apply styles to newly created elements
           if (editorRef.current) {
+            applyStylesToContent(editorRef.current);
+            
+            // Get updated content
             const newContent = editorRef.current.innerHTML;
             setContent(newContent);
             
@@ -306,7 +374,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
     }
   }, [addToHistory, saveCursorPosition, restoreCursorPosition]);
   
-  // Handle content changes with improved focus handling
+  // Handle content changes with improved styling
   const handleContentChange = useCallback(() => {
     if (!editorRef.current || isContentUpdating.current) return;
     
@@ -314,6 +382,9 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
     
     // Only update if content actually changed
     if (newContent === content) return;
+    
+    // Apply styles to content when it changes
+    applyStylesToContent(editorRef.current);
     
     setContent(newContent);
     
@@ -395,6 +466,13 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
       }
     };
   }, [handleFormat, handleRedo, handleUndo]);
+  
+  // Add styling when editor mounts
+  useEffect(() => {
+    if (editorRef.current) {
+      applyStylesToContent(editorRef.current);
+    }
+  }, []);
   
   return (
     <div className={cn("editor-container px-8", className)}>
@@ -517,7 +595,13 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
           onInput={handleContentChange}
           spellCheck="false"
           data-gramm="false"
-          style={{ whiteSpace: 'pre-wrap' }}
+          style={{ 
+            whiteSpace: 'pre-wrap',
+            // Enhance visibility of HTML elements
+            '--tw-prose-headings': 'var(--foreground)',
+            '--tw-prose-body': 'var(--foreground)',
+            '--tw-prose-bullets': 'var(--foreground)',
+          }}
           onClick={saveCursorPosition}
           onKeyUp={saveCursorPosition}
           onBlur={() => {
