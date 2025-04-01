@@ -74,6 +74,7 @@ const NewPage = () => {
   const [title, setTitle] = useState('');
   const [selectedType, setSelectedType] = useState<PageType>('richtext');
   const [isCreating, setIsCreating] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
   
   const notebook = notebookId ? getNotebookById(notebookId) : null;
   const section = notebookId && sectionId ? getSectionById(notebookId, sectionId) : null;
@@ -110,18 +111,25 @@ const NewPage = () => {
     } catch (error) {
       console.error("Error creating page:", error);
       
-      // Check if this is the first attempt and we're using Supabase
-      // If so, try again with fallback to local storage
       toast({
         title: "Error creating page",
-        description: "There was a problem connecting to the database. Please check your connection and try again.",
+        description: "There was a problem connecting to the database. Using local storage as fallback.",
         variant: "destructive"
       });
       
-      // The useNotebooks hook already has fallback to mock data, 
-      // so we don't need to do anything special here
-    } finally {
-      setIsCreating(false);
+      // Automatically retry with local storage
+      if (retryCount < 1) {
+        setRetryCount(prev => prev + 1);
+        // The useNotebooks hook already has fallback to mock data
+        handleCreatePage();
+      } else {
+        toast({
+          title: "Still having issues",
+          description: "Please check your internet connection and try again later.",
+          variant: "destructive"
+        });
+        setIsCreating(false);
+      }
     }
   };
   
