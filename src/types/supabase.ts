@@ -12,7 +12,7 @@ export interface Database {
     Tables: {
       notebooks: {
         Row: {
-          id: string
+          id: number
           created_at: string
           title: string
           description: string
@@ -20,7 +20,7 @@ export interface Database {
           last_edited_at: string
         }
         Insert: {
-          id?: string
+          id?: number
           created_at?: string
           title: string
           description: string
@@ -28,7 +28,7 @@ export interface Database {
           last_edited_at?: string
         }
         Update: {
-          id?: string
+          id?: number
           created_at?: string
           title?: string
           description?: string
@@ -38,56 +38,56 @@ export interface Database {
       }
       sections: {
         Row: {
-          id: string
+          id: number
           created_at: string
           title: string
-          notebook_id: string
+          notebook_id: number
           order: number
         }
         Insert: {
-          id?: string
+          id?: number
           created_at?: string
           title: string
-          notebook_id: string
+          notebook_id: number
           order?: number
         }
         Update: {
-          id?: string
+          id?: number
           created_at?: string
           title?: string
-          notebook_id?: string
+          notebook_id?: number
           order?: number
         }
       }
       pages: {
         Row: {
-          id: string
+          id: number
           created_at: string
           title: string
           content: string
-          section_id: string
+          section_id: number
           type: string
           last_edited_at: string
           tags: string[] | null
           order: number
         }
         Insert: {
-          id?: string
+          id?: number
           created_at?: string
           title: string
           content?: string
-          section_id: string
+          section_id: number
           type?: string
           last_edited_at?: string
           tags?: string[] | null
           order?: number
         }
         Update: {
-          id?: string
+          id?: number
           created_at?: string
           title?: string
           content?: string
-          section_id?: string
+          section_id?: number
           type?: string
           last_edited_at?: string
           tags?: string[] | null

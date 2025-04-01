@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useMemo } from 'react';
 import { toast } from './use-toast';
 import { supabase } from '@/lib/supabase';
@@ -78,7 +79,7 @@ export function useNotebooks() {
                   if (pagesError) throw pagesError;
                   
                   const pages = (pagesData || []).map(page => ({
-                    id: page.id,
+                    id: String(page.id),
                     title: page.title,
                     content: page.content || '',
                     lastEdited: formatTimestamp(page.last_edited_at),
@@ -88,7 +89,7 @@ export function useNotebooks() {
                   }));
                   
                   return {
-                    id: section.id,
+                    id: String(section.id),
                     title: section.title,
                     pages
                   };
@@ -96,9 +97,9 @@ export function useNotebooks() {
               );
               
               return {
-                id: notebook.id,
+                id: String(notebook.id),
                 title: notebook.title,
-                description: notebook.description,
+                description: notebook.description || '',
                 sections,
                 lastEdited: formatTimestamp(notebook.last_edited_at),
                 createdAt: formatTimestamp(notebook.created_at)
@@ -213,14 +214,21 @@ export function useNotebooks() {
         return updatedNotebooks;
       });
       
-      // Update in Supabase
+      // Update in Supabase - Convert string ID to number for Supabase
+      const numericPageId = parseInt(pageId, 10);
+      
+      // Check if conversion was successful
+      if (isNaN(numericPageId)) {
+        throw new Error(`Invalid page ID: ${pageId}`);
+      }
+      
       const { error } = await supabase
         .from('pages')
         .update({ 
           content: newContent,
           last_edited_at: new Date().toISOString()
         })
-        .eq('id', pageId);
+        .eq('id', numericPageId);
       
       if (error) throw error;
       
@@ -256,14 +264,20 @@ export function useNotebooks() {
         return updatedNotebooks;
       });
       
-      // Update in Supabase
+      // Update in Supabase - Convert string ID to number
+      const numericPageId = parseInt(pageId, 10);
+      
+      if (isNaN(numericPageId)) {
+        throw new Error(`Invalid page ID: ${pageId}`);
+      }
+      
       const { error } = await supabase
         .from('pages')
         .update({ 
           title: newTitle,
           last_edited_at: new Date().toISOString()
         })
-        .eq('id', pageId);
+        .eq('id', numericPageId);
       
       if (error) throw error;
     } catch (error) {
@@ -296,14 +310,20 @@ export function useNotebooks() {
         return updatedNotebooks;
       });
       
-      // Update in Supabase
+      // Update in Supabase - Convert string ID to number
+      const numericPageId = parseInt(pageId, 10);
+      
+      if (isNaN(numericPageId)) {
+        throw new Error(`Invalid page ID: ${pageId}`);
+      }
+      
       const { error } = await supabase
         .from('pages')
         .update({ 
           tags: newTags,
           last_edited_at: new Date().toISOString()
         })
-        .eq('id', pageId);
+        .eq('id', numericPageId);
       
       if (error) throw error;
     } catch (error) {
@@ -336,19 +356,31 @@ export function useNotebooks() {
         return updatedNotebooks;
       });
       
-      // Delete from Supabase
+      // Delete from Supabase - Convert string ID to number
+      const numericPageId = parseInt(pageId, 10);
+      
+      if (isNaN(numericPageId)) {
+        throw new Error(`Invalid page ID: ${pageId}`);
+      }
+      
       const { error } = await supabase
         .from('pages')
         .delete()
-        .eq('id', pageId);
+        .eq('id', numericPageId);
       
       if (error) throw error;
       
-      // Update notebook's last_edited_at
+      // Update notebook's last_edited_at - Convert string ID to number
+      const numericNotebookId = parseInt(pageInfo.notebook.id, 10);
+      
+      if (isNaN(numericNotebookId)) {
+        throw new Error(`Invalid notebook ID: ${pageInfo.notebook.id}`);
+      }
+      
       await supabase
         .from('notebooks')
         .update({ last_edited_at: new Date().toISOString() })
-        .eq('id', pageInfo.notebook.id);
+        .eq('id', numericNotebookId);
     } catch (error) {
       console.error("Error deleting page:", error);
       throw error;
@@ -357,46 +389,48 @@ export function useNotebooks() {
 
   const createNotebook = async (title: string, description: string) => {
     try {
-      // Create a unique ID
-      const id = `nb-${Date.now()}`;
+      // Send insert request to Supabase
       const now = new Date().toISOString();
       
-      // First create notebook in Supabase
-      const { error: notebookError } = await supabase
+      // First create notebook in Supabase - Remove ID field as it's auto-generated
+      const { data: notebookData, error: notebookError } = await supabase
         .from('notebooks')
         .insert({
-          id,
           title,
           description,
           created_at: now,
           last_edited_at: now,
           user_id: 'anonymous' // Replace with actual user ID when auth is implemented
-        });
+        })
+        .select()
+        .single();
       
       if (notebookError) throw notebookError;
+      if (!notebookData) throw new Error("Failed to create notebook");
       
       // Create default section
-      const sectionId = `sec-${Date.now()}`;
-      const { error: sectionError } = await supabase
+      const { data: sectionData, error: sectionError } = await supabase
         .from('sections')
         .insert({
-          id: sectionId,
           title: 'Default Section',
-          notebook_id: id,
+          notebook_id: notebookData.id,
           created_at: now,
           order: 0
-        });
+        })
+        .select()
+        .single();
       
       if (sectionError) throw sectionError;
+      if (!sectionData) throw new Error("Failed to create section");
       
       // Update local state
       const newNotebook: Notebook = {
-        id,
+        id: String(notebookData.id),
         title,
         description,
         sections: [
           {
-            id: sectionId,
+            id: String(sectionData.id),
             title: 'Default Section',
             pages: []
           }
@@ -420,41 +454,49 @@ export function useNotebooks() {
 
   const createSection = async (notebookId: string, title: string) => {
     try {
-      const id = `sec-${Date.now()}`;
       const now = new Date().toISOString();
+      
+      // Convert string ID to number for Supabase
+      const numericNotebookId = parseInt(notebookId, 10);
+      
+      if (isNaN(numericNotebookId)) {
+        throw new Error(`Invalid notebook ID: ${notebookId}`);
+      }
       
       // Get current sections count for order
       const { data, error: countError } = await supabase
         .from('sections')
         .select('id')
-        .eq('notebook_id', notebookId);
+        .eq('notebook_id', numericNotebookId);
       
       if (countError) throw countError;
       
       const order = data?.length || 0;
       
-      // Create section in Supabase
-      const { error } = await supabase
+      // Create section in Supabase - Remove ID field as it's auto-generated
+      const { data: sectionData, error } = await supabase
         .from('sections')
         .insert({
-          id,
           title,
-          notebook_id: notebookId,
+          notebook_id: numericNotebookId,
           created_at: now,
           order
-        });
+        })
+        .select()
+        .single();
       
       if (error) throw error;
+      if (!sectionData) throw new Error("Failed to create section");
       
       // Update notebook's last_edited_at
       await supabase
         .from('notebooks')
         .update({ last_edited_at: now })
-        .eq('id', notebookId);
+        .eq('id', numericNotebookId);
       
       // Update local state
       const newSection: Section = {
-        id,
+        id: String(sectionData.id),
         title,
         pages: [],
       };
@@ -489,45 +531,53 @@ export function useNotebooks() {
       // Validate the page type
       const validType = ensureValidPageType(type);
       
-      // Generate unique ID with current timestamp
-      const pageId = `page-${Date.now()}`;
+      // Convert string ID to number for Supabase
+      const numericSectionId = parseInt(sectionId, 10);
+      const numericNotebookId = parseInt(notebookId, 10);
+      
+      if (isNaN(numericSectionId) || isNaN(numericNotebookId)) {
+        throw new Error(`Invalid IDs: notebookId=${notebookId}, sectionId=${sectionId}`);
+      }
+      
       const now = new Date().toISOString();
       
       // Get current pages count for order
       const { data, error: countError } = await supabase
         .from('pages')
         .select('id')
-        .eq('section_id', sectionId);
+        .eq('section_id', numericSectionId);
       
       if (countError) throw countError;
       
       const order = data?.length || 0;
       
-      // Create page in Supabase
-      const { error } = await supabase
+      // Create page in Supabase - Remove ID field as it's auto-generated
+      const { data: pageData, error } = await supabase
         .from('pages')
         .insert({
-          id: pageId,
           title,
           content: '',
-          section_id: sectionId,
+          section_id: numericSectionId,
           type: validType,
           created_at: now,
           last_edited_at: now,
           tags: [],
           order
-        });
+        })
+        .select()
+        .single();
       
       if (error) throw error;
+      if (!pageData) throw new Error("Failed to create page");
       
       // Update notebook's last_edited_at
       await supabase
         .from('notebooks')
         .update({ last_edited_at: now })
-        .eq('id', notebookId);
+        .eq('id', numericNotebookId);
       
       const newPage: Page = {
-        id: pageId,
+        id: String(pageData.id),
         title,
         content: '',
         lastEdited: 'just now',
