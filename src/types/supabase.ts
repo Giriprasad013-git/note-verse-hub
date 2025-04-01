@@ -20,7 +20,7 @@ export interface Database {
           last_edited_at: string
         }
         Insert: {
-          id?: number
+          id?: number // Make id optional for insert operations
           created_at?: string
           title: string
           description: string
@@ -45,7 +45,7 @@ export interface Database {
           order: number
         }
         Insert: {
-          id?: number
+          id?: number // Make id optional for insert operations
           created_at?: string
           title: string
           notebook_id: number
@@ -72,7 +72,7 @@ export interface Database {
           order: number
         }
         Insert: {
-          id?: number
+          id?: number // Make id optional for insert operations
           created_at?: string
           title: string
           content?: string
