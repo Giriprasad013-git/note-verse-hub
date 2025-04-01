@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useMemo } from 'react';
 import { toast } from './use-toast';
 import { supabase } from '@/lib/supabase';
@@ -472,7 +473,7 @@ export function useNotebooks() {
       
       const order = data?.length || 0;
       
-      // Create section in Supabase - Remove ID field as it's auto-generated
+      // Create section in Supabase
       const { data: sectionData, error } = await supabase
         .from('sections')
         .insert({
@@ -550,7 +551,7 @@ export function useNotebooks() {
       
       const order = data?.length || 0;
       
-      // Create page in Supabase - Remove ID field as it's auto-generated
+      // Create page in Supabase
       const { data: pageData, error } = await supabase
         .from('pages')
         .insert({
