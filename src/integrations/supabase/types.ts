@@ -9,7 +9,109 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      notebooks: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: number
+          last_edited_at: string | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: never
+          last_edited_at?: string | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: never
+          last_edited_at?: string | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      pages: {
+        Row: {
+          content: string | null
+          created_at: string | null
+          id: number
+          last_edited_at: string | null
+          order: number | null
+          section_id: number
+          tags: string[] | null
+          title: string
+          type: string | null
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string | null
+          id?: never
+          last_edited_at?: string | null
+          order?: number | null
+          section_id: number
+          tags?: string[] | null
+          title: string
+          type?: string | null
+        }
+        Update: {
+          content?: string | null
+          created_at?: string | null
+          id?: never
+          last_edited_at?: string | null
+          order?: number | null
+          section_id?: number
+          tags?: string[] | null
+          title?: string
+          type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pages_section_id_fkey"
+            columns: ["section_id"]
+            isOneToOne: false
+            referencedRelation: "sections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sections: {
+        Row: {
+          created_at: string | null
+          id: number
+          notebook_id: number
+          order: number | null
+          title: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: never
+          notebook_id: number
+          order?: number | null
+          title: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: never
+          notebook_id?: number
+          order?: number | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sections_notebook_id_fkey"
+            columns: ["notebook_id"]
+            isOneToOne: false
+            referencedRelation: "notebooks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

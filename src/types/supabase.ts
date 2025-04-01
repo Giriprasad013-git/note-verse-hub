@@ -1,5 +1,4 @@
 
-
 export type Json =
   | string
   | number
@@ -24,7 +23,7 @@ export interface Database {
           id?: number  // Make id optional for insert operations
           created_at?: string
           title: string
-          description: string
+          description?: string
           user_id: string
           last_edited_at?: string
         }
@@ -111,4 +110,3 @@ export interface Database {
 export type Tables<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Row']
 export type Inserts<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Insert']
 export type Updates<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Update']
-
