@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Clock, Bold, Italic, List, ListOrdered, Link as LinkIcon,
-  Heading1, Heading2, Heading3, Image, Code, Quote, Undo, Redo
+  Heading1, Heading2, Heading3, Image, Code, Quote, Undo, Redo,
+  Type
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
@@ -13,6 +14,12 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { Separator } from '@/components/ui/separator';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { Slider } from '@/components/ui/slider';
 
 interface RichTextEditorProps {
   initialContent?: string;
@@ -20,6 +27,18 @@ interface RichTextEditorProps {
   onContentChange?: (content: string) => void;
   className?: string;
 }
+
+const fontOptions = [
+  { name: 'Default', value: 'inherit' },
+  { name: 'Arial', value: 'Arial, sans-serif' },
+  { name: 'Times New Roman', value: 'Times New Roman, serif' },
+  { name: 'Courier New', value: 'Courier New, monospace' },
+  { name: 'Georgia', value: 'Georgia, serif' },
+  { name: 'Verdana', value: 'Verdana, sans-serif' },
+  { name: 'Roboto', value: 'Roboto, sans-serif' },
+];
+
+const fontSizes = [10, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48];
 
 const RichTextEditor: React.FC<RichTextEditorProps> = ({
   initialContent = '',
@@ -33,13 +52,14 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
   const [historyStack, setHistoryStack] = useState<string[]>([initialContent]);
   const [historyIndex, setHistoryIndex] = useState(0);
   const [isProcessingCommand, setIsProcessingCommand] = useState(false);
+  const [currentFont, setCurrentFont] = useState('inherit');
+  const [currentFontSize, setCurrentFontSize] = useState(16);
   const editorRef = useRef<HTMLDivElement>(null);
   const cursorPositionRef = useRef<Range | null>(null);
   const isContentUpdating = useRef<boolean>(false);
   const initialContentRef = useRef<string>(initialContent);
   const lastSavedContentRef = useRef<string>(initialContent);
   
-  // Save cursor position before any command execution
   const saveCursorPosition = useCallback(() => {
     if (document.getSelection) {
       const selection = document.getSelection();
@@ -49,7 +69,6 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
     }
   }, []);
 
-  // Restore cursor position after command execution
   const restoreCursorPosition = useCallback(() => {
     if (cursorPositionRef.current && document.getSelection) {
       const selection = document.getSelection();
@@ -60,30 +79,25 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
     }
   }, []);
   
-  // Only initialize the editor once or when initialContent changes significantly
   useEffect(() => {
+    if (!initialContent) return;
+    
     if (initialContent !== initialContentRef.current && editorRef.current) {
-      // Only update if content has actually changed from server
       if (initialContent !== lastSavedContentRef.current) {
         initialContentRef.current = initialContent;
         lastSavedContentRef.current = initialContent;
         
-        // Flag that we're updating to prevent loops
         isContentUpdating.current = true;
         
-        // Save cursor position before updating
         saveCursorPosition();
         
-        // Update editor content
         editorRef.current.innerHTML = initialContent;
         setContent(initialContent);
         setHistoryStack([initialContent]);
         setHistoryIndex(0);
         
-        // Apply appropriate styling to HTML elements
         applyStylesToContent(editorRef.current);
         
-        // Restore cursor and clear flag after a short delay
         setTimeout(() => {
           restoreCursorPosition();
           isContentUpdating.current = false;
@@ -92,9 +106,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
     }
   }, [initialContent, saveCursorPosition, restoreCursorPosition]);
   
-  // Function to apply styles to HTML elements in the editor
   const applyStylesToContent = (container: HTMLElement) => {
-    // Apply styles to headings
     container.querySelectorAll('h1').forEach(el => {
       el.classList.add('text-3xl', 'font-bold', 'mt-6', 'mb-4');
     });
@@ -105,7 +117,6 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
       el.classList.add('text-xl', 'font-bold', 'mt-4', 'mb-2');
     });
     
-    // Apply styles to lists
     container.querySelectorAll('ul').forEach(el => {
       el.classList.add('list-disc', 'ml-6', 'mb-4');
     });
@@ -113,90 +124,139 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
       el.classList.add('list-decimal', 'ml-6', 'mb-4');
     });
     
-    // Apply styles to blockquotes
     container.querySelectorAll('blockquote').forEach(el => {
       el.classList.add('border-l-4', 'border-muted', 'pl-4', 'italic', 'my-4');
     });
     
-    // Apply styles to code blocks
     container.querySelectorAll('pre').forEach(el => {
       el.classList.add('bg-muted', 'p-4', 'rounded', 'my-4', 'overflow-auto');
     });
   };
   
-  // Ensure editor is focused to allow typing
   useEffect(() => {
-    // Small delay to ensure DOM is fully loaded
-    const timer = setTimeout(() => {
-      if (editorRef.current && !editorRef.current.contains(document.activeElement)) {
-        editorRef.current.focus();
-      }
-    }, 100);
-    
-    return () => clearTimeout(timer);
+    if (editorRef.current) {
+      applyStylesToContent(editorRef.current);
+    }
   }, []);
   
-  // Add to history stack when content changes
   const addToHistory = useCallback((newContent: string) => {
     if (historyIndex < historyStack.length - 1) {
-      // If we're in the middle of the history, truncate the future
       const newStack = historyStack.slice(0, historyIndex + 1);
       newStack.push(newContent);
       setHistoryStack(newStack);
       setHistoryIndex(newStack.length - 1);
     } else {
-      // We're at the latest history point, just append
       setHistoryStack(prev => [...prev, newContent]);
       setHistoryIndex(prev => prev + 1);
     }
   }, [historyStack, historyIndex]);
   
-  // Format buttons handler with improved cursor position management
+  const handleFontChange = useCallback((fontFamily: string) => {
+    if (isProcessingCommand) return;
+    
+    setIsProcessingCommand(true);
+    setCurrentFont(fontFamily);
+    
+    if (editorRef.current) {
+      editorRef.current.focus();
+      saveCursorPosition();
+      
+      document.execCommand('fontName', false, fontFamily);
+      
+      setTimeout(() => {
+        restoreCursorPosition();
+        
+        if (editorRef.current) {
+          const newContent = editorRef.current.innerHTML;
+          setContent(newContent);
+          
+          if (newContent !== historyStack[historyIndex]) {
+            addToHistory(newContent);
+          }
+        }
+        
+        setIsProcessingCommand(false);
+      }, 10);
+    } else {
+      setIsProcessingCommand(false);
+    }
+  }, [isProcessingCommand, historyStack, historyIndex, addToHistory, saveCursorPosition, restoreCursorPosition]);
+  
+  const handleFontSizeChange = useCallback((size: number) => {
+    if (isProcessingCommand) return;
+    
+    setIsProcessingCommand(true);
+    setCurrentFontSize(size);
+    
+    if (editorRef.current) {
+      editorRef.current.focus();
+      saveCursorPosition();
+      
+      document.execCommand('fontSize', false, '7');
+      
+      const selection = document.getSelection();
+      if (selection && selection.rangeCount > 0) {
+        const fontElements = document.getElementsByTagName('font');
+        for (let i = fontElements.length - 1; i >= 0; i--) {
+          const element = fontElements[i];
+          if (element.size === '7') {
+            element.removeAttribute('size');
+            element.style.fontSize = `${size}px`;
+          }
+        }
+      }
+      
+      setTimeout(() => {
+        restoreCursorPosition();
+        
+        if (editorRef.current) {
+          const newContent = editorRef.current.innerHTML;
+          setContent(newContent);
+          
+          if (newContent !== historyStack[historyIndex]) {
+            addToHistory(newContent);
+          }
+        }
+        
+        setIsProcessingCommand(false);
+      }, 10);
+    } else {
+      setIsProcessingCommand(false);
+    }
+  }, [isProcessingCommand, historyStack, historyIndex, addToHistory, saveCursorPosition, restoreCursorPosition]);
+  
   const handleFormat = useCallback((command: string, value?: string) => {
-    // Prevent processing multiple commands at once to avoid race conditions
     if (isProcessingCommand) return;
     
     setIsProcessingCommand(true);
     
     try {
-      // Ensure editor has focus before executing command
       if (editorRef.current) {
         editorRef.current.focus();
         
-        // Save current cursor position
         saveCursorPosition();
         
-        // Special handling for code block
         if (command === 'formatBlock' && value === '<pre>') {
           document.execCommand('formatBlock', false, value);
           
-          // After creating pre tag, we need to add code tag inside for proper code formatting
           const selection = window.getSelection();
           if (selection && selection.rangeCount > 0) {
             const range = selection.getRangeAt(0);
             const preElement = range.startContainer.parentElement?.closest('pre');
             
             if (preElement) {
-              // Create a code element
               const codeElement = document.createElement('code');
-              
-              // Move pre content to code element
               while (preElement.firstChild) {
                 codeElement.appendChild(preElement.firstChild);
               }
-              
-              // Add code element to pre
               preElement.appendChild(codeElement);
               
-              // Add styling classes
               preElement.classList.add('bg-muted', 'p-4', 'rounded', 'my-4', 'overflow-auto', 'font-mono', 'text-sm');
             }
           }
         } else if (command === 'formatBlock' && (value === '<h1>' || value === '<h2>' || value === '<h3>')) {
-          // Special handling for headings to ensure they're visible
           document.execCommand(command, false, value);
           
-          // Apply appropriate styling based on heading level
           const selection = window.getSelection();
           if (selection && selection.rangeCount > 0) {
             const range = selection.getRangeAt(0);
@@ -213,10 +273,8 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
             }
           }
         } else if (command === 'insertUnorderedList' || command === 'insertOrderedList') {
-          // Special handling for lists
           document.execCommand(command, false, value);
           
-          // Apply styling to created list
           setTimeout(() => {
             if (editorRef.current) {
               const lists = command === 'insertUnorderedList' 
@@ -233,23 +291,18 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
             }
           }, 10);
         } else {
-          // Execute standard command
           document.execCommand(command, false, value);
         }
         
-        // Restore cursor position and apply styles
         setTimeout(() => {
           restoreCursorPosition();
           
-          // Apply styles to newly created elements
           if (editorRef.current) {
             applyStylesToContent(editorRef.current);
             
-            // Get updated content
             const newContent = editorRef.current.innerHTML;
             setContent(newContent);
             
-            // Only add to history if content actually changed
             if (newContent !== historyStack[historyIndex]) {
               addToHistory(newContent);
             }
@@ -271,20 +324,18 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
       });
     }
   }, [isProcessingCommand, historyStack, historyIndex, addToHistory, saveCursorPosition, restoreCursorPosition]);
-
+  
   const handleUndo = useCallback(() => {
     if (historyIndex > 0) {
       const newIndex = historyIndex - 1;
       setHistoryIndex(newIndex);
       
       if (editorRef.current) {
-        // Save cursor position before updating
         saveCursorPosition();
         
         editorRef.current.innerHTML = historyStack[newIndex];
         setContent(historyStack[newIndex]);
         
-        // Restore cursor position after a short delay
         setTimeout(() => {
           restoreCursorPosition();
         }, 10);
@@ -298,22 +349,19 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
       setHistoryIndex(newIndex);
       
       if (editorRef.current) {
-        // Save cursor position before updating
         saveCursorPosition();
         
         editorRef.current.innerHTML = historyStack[newIndex];
         setContent(historyStack[newIndex]);
         
-        // Restore cursor position after a short delay
         setTimeout(() => {
           restoreCursorPosition();
         }, 10);
       }
     }
   }, [historyIndex, historyStack, saveCursorPosition, restoreCursorPosition]);
-
+  
   const handleImageUpload = useCallback(() => {
-    // Save current cursor position before opening dialog
     saveCursorPosition();
     
     const input = document.createElement('input');
@@ -323,13 +371,9 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
     input.onchange = (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (file) {
-        // For now, simulate image insertion with a placeholder
         const reader = new FileReader();
         reader.onload = () => {
-          // Ensure focus before executing command
           editorRef.current?.focus();
-          
-          // Restore cursor position
           restoreCursorPosition();
           
           setTimeout(() => {
@@ -350,21 +394,16 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
   }, [addToHistory, saveCursorPosition, restoreCursorPosition]);
   
   const handleLinkInsert = useCallback(() => {
-    // Save current cursor position before prompting
     saveCursorPosition();
     
     const url = prompt("Enter URL:", "https://");
     if (url) {
-      // Ensure focus before executing command
       editorRef.current?.focus();
-      
-      // Restore cursor position
       restoreCursorPosition();
       
       setTimeout(() => {
         document.execCommand('createLink', false, url);
         
-        // Get updated content after link insert
         if (editorRef.current) {
           const newContent = editorRef.current.innerHTML;
           setContent(newContent);
@@ -374,21 +413,17 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
     }
   }, [addToHistory, saveCursorPosition, restoreCursorPosition]);
   
-  // Handle content changes with improved styling
   const handleContentChange = useCallback(() => {
     if (!editorRef.current || isContentUpdating.current) return;
     
     const newContent = editorRef.current.innerHTML;
     
-    // Only update if content actually changed
     if (newContent === content) return;
     
-    // Apply styles to content when it changes
     applyStylesToContent(editorRef.current);
     
     setContent(newContent);
     
-    // Debounced history addition (only add to history if there's a 500ms pause)
     const timer = setTimeout(() => {
       if (newContent !== historyStack[historyIndex]) {
         addToHistory(newContent);
@@ -398,23 +433,18 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
     return () => clearTimeout(timer);
   }, [content, historyStack, historyIndex, addToHistory]);
   
-  // Auto-save functionality - separate from content changes to prevent cursor jumps
   useEffect(() => {
-    // Don't trigger save if content hasn't changed from initial/last saved or if we're currently updating
     if (content === lastSavedContentRef.current || isContentUpdating.current) return;
     
     const saveTimer = setTimeout(() => {
       setIsSaving(true);
       
-      // Update last saved content reference
       lastSavedContentRef.current = content;
       
-      // Notify parent component of content change
       if (onContentChange) {
         onContentChange(content);
       }
       
-      // Update save status
       setTimeout(() => {
         setIsSaving(false);
         setLastSaved(new Date());
@@ -424,10 +454,8 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
     return () => clearTimeout(saveTimer);
   }, [content, onContentChange]);
   
-  // Create keyboard shortcut handlers
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Handle common keyboard shortcuts
       if (e.ctrlKey || e.metaKey) {
         switch (e.key.toLowerCase()) {
           case 'b':
@@ -454,7 +482,6 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
       }
     };
     
-    // Add event listener to the editor
     const editorElement = editorRef.current;
     if (editorElement) {
       editorElement.addEventListener('keydown', handleKeyDown);
@@ -466,13 +493,6 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
       }
     };
   }, [handleFormat, handleRedo, handleUndo]);
-  
-  // Add styling when editor mounts
-  useEffect(() => {
-    if (editorRef.current) {
-      applyStylesToContent(editorRef.current);
-    }
-  }, []);
   
   return (
     <div className={cn("editor-container px-8", className)}>
@@ -509,6 +529,58 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
               icon={<Heading3 className="h-4 w-4" />}
               tooltip="Heading 3"
             />
+          </EditorToolbarGroup>
+          
+          <Separator orientation="vertical" className="h-6" />
+          
+          <EditorToolbarGroup>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <Type className="h-4 w-4" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-72">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <h4 className="text-sm font-medium">Font Family</h4>
+                    <div className="grid grid-cols-1 gap-2">
+                      {fontOptions.map((font) => (
+                        <Button
+                          key={font.value}
+                          variant={currentFont === font.value ? "default" : "outline"}
+                          size="sm"
+                          className="justify-start"
+                          style={{ fontFamily: font.value }}
+                          onClick={() => handleFontChange(font.value)}
+                        >
+                          {font.name}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <h4 className="text-sm font-medium">Font Size: {currentFontSize}px</h4>
+                    </div>
+                    <div className="pt-2">
+                      <Slider
+                        min={10}
+                        max={48}
+                        step={1}
+                        value={[currentFontSize]}
+                        onValueChange={(values) => handleFontSizeChange(values[0])}
+                      />
+                    </div>
+                    <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                      <span>10px</span>
+                      <span>48px</span>
+                    </div>
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
           </EditorToolbarGroup>
           
           <Separator orientation="vertical" className="h-6" />
@@ -597,15 +669,12 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
           data-gramm="false"
           style={{ 
             whiteSpace: 'pre-wrap',
-            // Enhance visibility of HTML elements
-            '--tw-prose-headings': 'var(--foreground)',
-            '--tw-prose-body': 'var(--foreground)',
-            '--tw-prose-bullets': 'var(--foreground)',
+            fontFamily: currentFont,
+            fontSize: `${currentFontSize}px`
           }}
           onClick={saveCursorPosition}
           onKeyUp={saveCursorPosition}
           onBlur={() => {
-            // Wait a little before saving since we might be refocusing elsewhere
             setTimeout(saveCursorPosition, 50);
           }}
         />
@@ -613,14 +682,6 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
     </div>
   );
 };
-
-// Toolbar button component
-interface EditorToolbarButtonProps {
-  onClick: () => void;
-  icon: React.ReactNode;
-  tooltip: string;
-  disabled?: boolean;
-}
 
 const EditorToolbarButton: React.FC<EditorToolbarButtonProps> = ({
   onClick,
@@ -651,7 +712,6 @@ const EditorToolbarButton: React.FC<EditorToolbarButtonProps> = ({
   );
 };
 
-// Group for toolbar buttons
 const EditorToolbarGroup: React.FC<{children: React.ReactNode}> = ({ children }) => {
   return (
     <div className="flex items-center">
@@ -660,7 +720,6 @@ const EditorToolbarGroup: React.FC<{children: React.ReactNode}> = ({ children })
   );
 };
 
-// Helper function to format time since last save
 function formatTimeSince(date: Date): string {
   const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
   

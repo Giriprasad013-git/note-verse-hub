@@ -30,8 +30,8 @@ const PageView = () => {
   
   const pageData = pageId ? getPageById(pageId) : null;
   const [isEditingTitle, setIsEditingTitle] = useState(false);
-  const [title, setTitle] = useState(pageData?.page.title || '');
-  const [tags, setTags] = useState<string[]>(pageData?.page.tags || []);
+  const [title, setTitle] = useState('');
+  const [tags, setTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState('');
   const [showSidebar, setShowSidebar] = useState(!isMobile);
   const titleInputRef = useRef<HTMLInputElement>(null);
@@ -75,7 +75,7 @@ const PageView = () => {
     
     setIsEditingTitle(false);
     
-    if (pageId && title !== pageData?.page.title) {
+    if (pageId && pageData && title !== pageData.page.title) {
       updatePageTitle(pageId, title.trim())
         .then(() => {
           toast({
@@ -84,7 +84,7 @@ const PageView = () => {
           });
         })
         .catch(() => {
-          setTitle(pageData?.page.title || '');
+          setTitle(pageData.page.title || '');
           toast({
             title: "Error updating title",
             description: "There was an issue updating the title. Please try again.",
@@ -94,7 +94,7 @@ const PageView = () => {
     }
   };
   
-  const handleTagAdd = () => {
+  const handleTagAdd = function() {
     if (!newTag.trim() || tags.includes(newTag.trim())) {
       setNewTag('');
       return;
@@ -123,7 +123,7 @@ const PageView = () => {
     }
   };
   
-  const handleTagRemove = (tagToRemove: string) => {
+  const handleTagRemove = function(tagToRemove: string) {
     const updatedTags = tags.filter(tag => tag !== tagToRemove);
     setTags(updatedTags);
     
@@ -146,7 +146,7 @@ const PageView = () => {
     }
   };
   
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = function(e: React.KeyboardEvent) {
     if (e.key === 'Enter') {
       handleTitleChange();
     } else if (e.key === 'Escape') {
@@ -155,14 +155,14 @@ const PageView = () => {
     }
   };
   
-  const handleTagKeyDown = (e: React.KeyboardEvent) => {
+  const handleTagKeyDown = function(e: React.KeyboardEvent) {
     if (e.key === 'Enter') {
       e.preventDefault();
       handleTagAdd();
     }
   };
   
-  const handleCopyPageLink = () => {
+  const handleCopyPageLink = function() {
     navigator.clipboard.writeText(window.location.href);
     toast({
       title: "Link copied",
@@ -170,7 +170,7 @@ const PageView = () => {
     });
   };
   
-  const handleExportAsHTML = () => {
+  const handleExportAsHTML = function() {
     if (!pageData) return;
     
     const htmlContent = `
@@ -213,7 +213,7 @@ const PageView = () => {
     });
   };
   
-  const handleDeletePage = () => {
+  const handleDeletePage = function() {
     if (!pageId || !pageData) return;
     
     const { notebook, section } = pageData;
@@ -308,7 +308,15 @@ const PageView = () => {
                       className="text-xl font-bold"
                       autoFocus
                       onBlur={handleTitleChange}
-                      onKeyDown={handleKeyDown}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleTitleChange();
+                        } else if (e.key === 'Escape') {
+                          setTitle(pageData.page.title || '');
+                          setIsEditingTitle(false);
+                        }
+                      }}
                     />
                   </div>
                 ) : (
