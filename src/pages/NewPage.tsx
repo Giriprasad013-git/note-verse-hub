@@ -39,8 +39,8 @@ const pageTypes = [
   },
   {
     id: 'flatpagev2' as const,
-    name: 'Flat Page V2',
-    description: 'Enhanced flat page with additional features',
+    name: 'Enhanced Flat Page',
+    description: 'Enhanced page with markdown formatting and styling options',
     icon: Layout
   },
   {

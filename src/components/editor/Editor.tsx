@@ -1,4 +1,5 @@
-import React from 'react';
+
+import React, { useEffect } from 'react';
 import {
   BrainCircuit,
   FileText,
@@ -36,7 +37,11 @@ const Editor: React.FC<EditorProps> = ({
   // Ensure we have a valid initial content
   const safeInitialContent = initialContent || '';
   
-  console.log("Editor rendering with content:", safeInitialContent.substring(0, 50) + "...");
+  console.log(`Editor rendering with type ${pageType} and content:`, safeInitialContent.substring(0, 50) + "...");
+  
+  useEffect(() => {
+    console.log(`Editor mounted with type: ${pageType}`);
+  }, [pageType]);
   
   switch (pageType) {
     case 'richtext':
@@ -67,6 +72,7 @@ const Editor: React.FC<EditorProps> = ({
         />
       );
     case 'flatpagev2':
+      // FlatPageV2 is fully implemented now
       return (
         <FlatPageV2Editor
           initialContent={safeInitialContent}

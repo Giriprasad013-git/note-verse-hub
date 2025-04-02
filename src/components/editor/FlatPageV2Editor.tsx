@@ -1,6 +1,6 @@
 
-import React, { useState, useEffect } from 'react';
-import { Layout, Save, Bold, Italic, List, Heading, Link as LinkIcon, Type } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Layout, Save, Bold, Italic, List, Heading, Link as LinkIcon, Type, AlignLeft, AlignCenter, AlignRight, Quote } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Button from '@/components/common/Button';
 import { Textarea } from '@/components/ui/textarea';
@@ -33,17 +33,32 @@ const FlatPageV2Editor: React.FC<FlatPageV2EditorProps> = ({
   const [isEditing, setIsEditing] = useState(false);
   const [fontSize, setFontSize] = useState(16);
   const [fontFamily, setFontFamily] = useState('sans');
+  const [textAlign, setTextAlign] = useState('left');
+  const contentRef = useRef<string>(initialContent);
   
   // Initialize content when initialContent changes
   useEffect(() => {
-    if (initialContent && !isEditing) {
+    if (initialContent && contentRef.current !== initialContent) {
       setContent(initialContent);
+      contentRef.current = initialContent;
     }
-  }, [initialContent, isEditing]);
+  }, [initialContent]);
   
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setIsEditing(true);
-    setContent(e.target.value);
+    const newContent = e.target.value;
+    setContent(newContent);
+    contentRef.current = newContent;
+    
+    // Auto-save after a short delay
+    const timeoutId = setTimeout(() => {
+      if (onContentChange) {
+        onContentChange(newContent);
+        setIsEditing(false);
+      }
+    }, 1000);
+    
+    return () => clearTimeout(timeoutId);
   };
   
   const handleSave = () => {
@@ -57,7 +72,7 @@ const FlatPageV2Editor: React.FC<FlatPageV2EditorProps> = ({
     }
   };
   
-  // Simple markdown-like preview renderer
+  // Simple markdown-like preview renderer with text alignment
   const renderPreview = () => {
     if (!content) return <p className="text-muted-foreground">No content to preview</p>;
     
@@ -71,10 +86,20 @@ const FlatPageV2Editor: React.FC<FlatPageV2EditorProps> = ({
       .replace(/\*(.+?)\*/g, '<em>$1</em>')
       // Convert lists
       .replace(/^- (.+)$/gm, '<li class="ml-5">$1</li>')
+      // Convert quotes
+      .replace(/^> (.+)$/gm, '<blockquote class="pl-4 border-l-4 border-gray-300 italic">$1</blockquote>')
       // Convert paragraphs
       .split('\n\n').join('</p><p class="mb-4">');
     
-    return <div className="prose" dangerouslySetInnerHTML={{ __html: `<p class="mb-4">${html}</p>` }} />;
+    return (
+      <div 
+        className={cn("prose max-w-none", 
+          textAlign === 'center' ? 'text-center' : 
+          textAlign === 'right' ? 'text-right' : 'text-left'
+        )} 
+        dangerouslySetInnerHTML={{ __html: `<p class="mb-4">${html}</p>` }} 
+      />
+    );
   };
   
   const insertMarkdown = (markdown: string) => {
@@ -102,6 +127,14 @@ const FlatPageV2Editor: React.FC<FlatPageV2EditorProps> = ({
       case 'serif': return 'font-serif';
       case 'mono': return 'font-mono';
       default: return 'font-sans';
+    }
+  };
+  
+  const getTextAlignClass = () => {
+    switch (textAlign) {
+      case 'center': return 'text-center';
+      case 'right': return 'text-right';
+      default: return 'text-left';
     }
   };
   
@@ -147,6 +180,33 @@ const FlatPageV2Editor: React.FC<FlatPageV2EditorProps> = ({
               <Button size="sm" variant="ghost" onClick={() => insertMarkdown('[Link text](https://example.com)')}>
                 <LinkIcon className="h-4 w-4" />
               </Button>
+              <Button size="sm" variant="ghost" onClick={() => insertMarkdown('> Quoted text')}>
+                <Quote className="h-4 w-4" />
+              </Button>
+            </div>
+            
+            <div className="flex items-center gap-1">
+              <Button 
+                size="sm" 
+                variant={textAlign === 'left' ? 'secondary' : 'ghost'} 
+                onClick={() => setTextAlign('left')}
+              >
+                <AlignLeft className="h-4 w-4" />
+              </Button>
+              <Button 
+                size="sm" 
+                variant={textAlign === 'center' ? 'secondary' : 'ghost'} 
+                onClick={() => setTextAlign('center')}
+              >
+                <AlignCenter className="h-4 w-4" />
+              </Button>
+              <Button 
+                size="sm" 
+                variant={textAlign === 'right' ? 'secondary' : 'ghost'} 
+                onClick={() => setTextAlign('right')}
+              >
+                <AlignRight className="h-4 w-4" />
+              </Button>
             </div>
             
             <div className="flex items-center gap-2 ml-2">
@@ -185,13 +245,18 @@ const FlatPageV2Editor: React.FC<FlatPageV2EditorProps> = ({
             onChange={handleChange}
             placeholder="Start typing your content here. You can use basic markdown syntax like # for headings, ** for bold, * for italic, and - for list items."
             className={cn(
-              "w-full h-full min-h-[calc(100vh-16rem)] p-4 text-base", 
-              getFontFamilyClass()
+              "w-full h-full min-h-[calc(100vh-18rem)] p-4 text-base", 
+              getFontFamilyClass(),
+              getTextAlignClass()
             )}
             style={{ fontSize: `${fontSize}px` }}
           />
         ) : (
-          <div className="bg-white rounded-md p-6 border">
+          <div className={cn(
+            "bg-white rounded-md p-6 border",
+            getFontFamilyClass(),
+            fontSize !== 16 && 'text-base'  // Only apply base text size if fontSize is not default
+          )} style={{ fontSize: fontSize !== 16 ? `${fontSize}px` : undefined }}>
             {renderPreview()}
           </div>
         )}
