@@ -1,174 +1,50 @@
-
 import React from 'react';
-import {
-  BrainCircuit,
-  FileText,
-  Table,
-  FileSpreadsheet,
-  Layers,
-  Layout,
-  PenSquare
+import RichTextEditor from '@/components/editor/RichTextEditor';
+import FlatPageEditor from '@/components/editor/FlatPageEditor';
+import FlatPageV2Editor from '@/components/editor/FlatPageV2Editor';
+import DrawIOEditor from '@/components/editor/DrawIOEditor';
+import PageGroupEditor from '@/components/editor/PageGroupEditor';
+import TableEditor from '@/components/editor/TableEditor';
+import SpreadsheetEditor from '@/components/editor/SpreadsheetEditor';
+import { 
+  PenSquare, 
+  FileText, 
+  Table, 
+  FileSpreadsheet, 
+  Layers, 
+  Layout, 
+  BrainCircuit
 } from 'lucide-react';
-import { Page } from '@/hooks/useNotebooks';
-import RichTextEditor from './RichTextEditor';
 
-interface EditorProps {
+export interface EditorProps {
   initialContent?: string;
   pageId: string;
-  pageType: Page['type'];
+  pageType: 'richtext' | 'drawio' | 'flatpage' | 'flatpagev2' | 'pagegroup' | 'spreadsheet' | 'table';
   onContentChange?: (content: string) => void;
-  className?: string;
 }
 
-// Main editor component that selects the appropriate editor based on type
-export const Editor: React.FC<EditorProps> = ({
-  initialContent = '',
-  pageId,
-  pageType,
-  onContentChange,
-  className,
-}) => {
-  // Ensure we have a valid initial content
-  const safeInitialContent = initialContent || '';
-  
+export const getPageTypeIcon = (pageType: EditorProps['pageType']) => {
   switch (pageType) {
     case 'richtext':
-      return (
-        <RichTextEditor
-          initialContent={safeInitialContent}
-          pageId={pageId}
-          onContentChange={onContentChange}
-          className={className}
-        />
-      );
+      return <PenSquare className="h-4 w-4" />;
     case 'drawio':
-      return <DrawIOEditor />;
+      return <BrainCircuit className="h-4 w-4" />;
     case 'flatpage':
+      return <FileText className="h-4 w-4" />;
     case 'flatpagev2':
-      return <FlatPageEditor type={pageType} />;
+      return <Layout className="h-4 w-4" />;
     case 'pagegroup':
-      return <PageGroupEditor />;
+      return <Layers className="h-4 w-4" />;
     case 'spreadsheet':
-      return <SpreadsheetEditor />;
+      return <FileSpreadsheet className="h-4 w-4" />;
     case 'table':
-      return <TableEditor />;
+      return <Table className="h-4 w-4" />;
     default:
-      return (
-        <RichTextEditor
-          initialContent={safeInitialContent}
-          pageId={pageId}
-          onContentChange={onContentChange}
-          className={className}
-        />
-      );
+      return <FileText className="h-4 w-4" />;
   }
 };
 
-// Placeholder editors for different types
-const DrawIOEditor = () => (
-  <div className="flex-1 flex items-center justify-center p-8 bg-muted/30">
-    <div className="text-center max-w-md">
-      <BrainCircuit className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-      <h2 className="text-xl font-medium mb-2">Draw.io Integration</h2>
-      <p className="text-muted-foreground mb-4">
-        This page type will allow you to create diagrams and flowcharts using the Draw.io integration.
-      </p>
-      <p className="text-sm text-muted-foreground">
-        Feature coming soon.
-      </p>
-    </div>
-  </div>
-);
-
-const FlatPageEditor: React.FC<{ type: 'flatpage' | 'flatpagev2' }> = ({ type }) => (
-  <div className="flex-1 flex items-center justify-center p-8 bg-muted/30">
-    <div className="text-center max-w-md">
-      {type === 'flatpage' ? (
-        <FileText className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-      ) : (
-        <Layout className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-      )}
-      <h2 className="text-xl font-medium mb-2">
-        {type === 'flatpage' ? 'Flat Page Editor' : 'Enhanced Flat Page Editor'}
-      </h2>
-      <p className="text-muted-foreground mb-4">
-        This page type provides a simplified editing experience with minimal formatting options.
-      </p>
-      <p className="text-sm text-muted-foreground">
-        Feature coming soon.
-      </p>
-    </div>
-  </div>
-);
-
-const PageGroupEditor = () => (
-  <div className="flex-1 flex items-center justify-center p-8 bg-muted/30">
-    <div className="text-center max-w-md">
-      <Layers className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-      <h2 className="text-xl font-medium mb-2">Page Group</h2>
-      <p className="text-muted-foreground mb-4">
-        Group multiple pages together for better organization.
-      </p>
-      <p className="text-sm text-muted-foreground">
-        Feature coming soon.
-      </p>
-    </div>
-  </div>
-);
-
-const SpreadsheetEditor = () => (
-  <div className="flex-1 flex items-center justify-center p-8 bg-muted/30">
-    <div className="text-center max-w-md">
-      <FileSpreadsheet className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-      <h2 className="text-xl font-medium mb-2">Spreadsheet Editor</h2>
-      <p className="text-muted-foreground mb-4">
-        Create tables with calculations and formulas.
-      </p>
-      <p className="text-sm text-muted-foreground">
-        Feature coming soon.
-      </p>
-    </div>
-  </div>
-);
-
-const TableEditor = () => (
-  <div className="flex-1 flex items-center justify-center p-8 bg-muted/30">
-    <div className="text-center max-w-md">
-      <Table className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-      <h2 className="text-xl font-medium mb-2">Table Editor</h2>
-      <p className="text-muted-foreground mb-4">
-        Create structured tables with sortable columns.
-      </p>
-      <p className="text-sm text-muted-foreground">
-        Feature coming soon.
-      </p>
-    </div>
-  </div>
-);
-
-// Export page type icon mapping function
-export const getPageTypeIcon = (pageType: Page['type']) => {
-  switch (pageType) {
-    case 'richtext':
-      return <PenSquare className="h-5 w-5" />;
-    case 'drawio':
-      return <BrainCircuit className="h-5 w-5" />;
-    case 'flatpage':
-    case 'flatpagev2':
-      return pageType === 'flatpage' ? <FileText className="h-5 w-5" /> : <Layout className="h-5 w-5" />;
-    case 'pagegroup':
-      return <Layers className="h-5 w-5" />;
-    case 'spreadsheet':
-      return <FileSpreadsheet className="h-5 w-5" />;
-    case 'table':
-      return <Table className="h-5 w-5" />;
-    default:
-      return <FileText className="h-5 w-5" />;
-  }
-};
-
-// Export page type name mapping function
-export const getPageTypeName = (pageType: Page['type']) => {
+export const getPageTypeName = (pageType: EditorProps['pageType']) => {
   switch (pageType) {
     case 'richtext':
       return 'Rich Text';
@@ -177,7 +53,7 @@ export const getPageTypeName = (pageType: Page['type']) => {
     case 'flatpage':
       return 'Flat Page';
     case 'flatpagev2':
-      return 'Flat Page V2';
+      return 'Enhanced Flat Page';
     case 'pagegroup':
       return 'Page Group';
     case 'spreadsheet':
@@ -188,3 +64,74 @@ export const getPageTypeName = (pageType: Page['type']) => {
       return 'Page';
   }
 };
+
+// Update the Editor component function to render the FlatPageV2Editor correctly
+export function Editor({ initialContent, pageId, pageType, onContentChange }: EditorProps) {
+  switch (pageType) {
+    case 'richtext':
+      return (
+        <RichTextEditor 
+          initialContent={initialContent} 
+          pageId={pageId}
+          onContentChange={onContentChange}
+        />
+      );
+    case 'flatpage':
+      return (
+        <FlatPageEditor 
+          initialContent={initialContent} 
+          pageId={pageId}
+          onContentChange={onContentChange}
+        />
+      );
+    case 'flatpagev2':
+      return (
+        <FlatPageV2Editor
+          initialContent={initialContent}
+          pageId={pageId} 
+          onContentChange={onContentChange}
+        />
+      );
+    case 'drawio':
+      return (
+        <DrawIOEditor 
+          initialContent={initialContent} 
+          pageId={pageId}
+          onContentChange={onContentChange}
+        />
+      );
+    case 'pagegroup':
+      return (
+        <PageGroupEditor 
+          initialContent={initialContent} 
+          pageId={pageId}
+          onContentChange={onContentChange}
+        />
+      );
+    case 'table':
+      return (
+        <TableEditor 
+          initialContent={initialContent} 
+          pageId={pageId}
+          onContentChange={onContentChange}
+        />
+      );
+    case 'spreadsheet':
+      return (
+        <SpreadsheetEditor 
+          initialContent={initialContent} 
+          pageId={pageId}
+          onContentChange={onContentChange}
+        />
+      );
+    default:
+      return (
+        <div className="p-6 flex flex-col items-center justify-center">
+          <h2 className="text-xl font-medium mb-2">Unsupported page type</h2>
+          <p className="text-muted-foreground text-center">
+            This page type is not supported yet.
+          </p>
+        </div>
+      );
+  }
+}

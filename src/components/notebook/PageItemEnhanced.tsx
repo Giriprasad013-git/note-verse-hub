@@ -51,7 +51,7 @@ const PageItemEnhanced = ({ page, className }: PageItemEnhancedProps) => {
       case 'flatpage':
         return 'Flat Page';
       case 'flatpagev2':
-        return 'Enhanced Flat Page';  // Updated the name to match the editor title
+        return 'Enhanced Flat Page';
       case 'pagegroup':
         return 'Page Group';
       case 'spreadsheet':
