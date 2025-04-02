@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { FolderOpen, Plus } from 'lucide-react';
 import Header from '@/components/layout/Header';
@@ -7,12 +7,50 @@ import Sidebar from '@/components/layout/Sidebar';
 import Button from '@/components/common/Button';
 import SectionItem from '@/components/notebook/SectionItem';
 import { useNotebooks } from '@/hooks/useNotebooks';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import Input from '@/components/common/Input';
+import { toast } from '@/hooks/use-toast';
 
 const NotebookView = () => {
   const { notebookId } = useParams<{ notebookId: string }>();
-  const { getNotebookById, isLoading } = useNotebooks();
+  const { getNotebookById, isLoading, createSection } = useNotebooks();
+  const [isNewSectionDialogOpen, setIsNewSectionDialogOpen] = useState(false);
+  const [newSectionTitle, setNewSectionTitle] = useState('');
   
   const notebook = notebookId ? getNotebookById(notebookId) : null;
+  
+  const handleNewSection = () => {
+    setIsNewSectionDialogOpen(true);
+  };
+  
+  const closeNewSectionDialog = () => {
+    setIsNewSectionDialogOpen(false);
+    setNewSectionTitle('');
+  };
+  
+  const handleCreateSection = async () => {
+    if (!notebookId) return;
+    
+    if (!newSectionTitle.trim()) {
+      toast({
+        title: "Title required",
+        description: "Please enter a title for your section",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    try {
+      await createSection(notebookId, newSectionTitle.trim());
+      toast({
+        title: "Section created",
+        description: `${newSectionTitle} has been created successfully`
+      });
+      closeNewSectionDialog();
+    } catch (error) {
+      console.error("Error creating section:", error);
+    }
+  };
   
   if (isLoading) {
     return (
@@ -67,7 +105,12 @@ const NotebookView = () => {
             <div className="mb-8">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-medium">Sections</h2>
-                <Button size="sm" variant="outline" className="gap-2">
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  className="gap-2" 
+                  onClick={handleNewSection}
+                >
                   <Plus className="h-4 w-4" />
                   New Section
                 </Button>
@@ -77,7 +120,7 @@ const NotebookView = () => {
                 <div className="text-center py-12 border border-dashed border-border rounded-lg">
                   <FolderOpen className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                   <p className="text-muted-foreground mb-4">No sections yet.</p>
-                  <Button variant="outline">Create Section</Button>
+                  <Button variant="outline" onClick={handleNewSection}>Create Section</Button>
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -96,6 +139,41 @@ const NotebookView = () => {
           </div>
         </main>
       </div>
+      
+      <Dialog open={isNewSectionDialogOpen} onOpenChange={setIsNewSectionDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Create New Section</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <label htmlFor="title" className="text-sm font-medium">
+                Title
+              </label>
+              <Input
+                id="title"
+                placeholder="Enter section title"
+                value={newSectionTitle}
+                onChange={(e) => setNewSectionTitle(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleCreateSection();
+                  }
+                }}
+                className="col-span-3"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={closeNewSectionDialog}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreateSection}>
+              Create
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

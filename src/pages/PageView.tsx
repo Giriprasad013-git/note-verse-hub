@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { 
   Edit2, 
@@ -66,33 +66,37 @@ const PageView = () => {
     }
   };
   
-  const handleTitleChange = () => {
-    if (!title.trim()) {
+  const handleTitleChange = useCallback(() => {
+    if (!title.trim() || !pageId || !pageData) {
       setTitle(pageData?.page.title || '');
       setIsEditingTitle(false);
       return;
     }
     
-    setIsEditingTitle(false);
-    
-    if (pageId && pageData && title !== pageData.page.title) {
-      updatePageTitle(pageId, title.trim())
-        .then(() => {
-          toast({
-            title: "Title updated",
-            description: "The page title has been updated successfully"
-          });
-        })
-        .catch(() => {
-          setTitle(pageData.page.title || '');
-          toast({
-            title: "Error updating title",
-            description: "There was an issue updating the title. Please try again.",
-            variant: "destructive"
-          });
-        });
+    if (title === pageData.page.title) {
+      setIsEditingTitle(false);
+      return;
     }
-  };
+    
+    updatePageTitle(pageId, title.trim())
+      .then(() => {
+        toast({
+          title: "Title updated",
+          description: "The page title has been updated successfully"
+        });
+      })
+      .catch(() => {
+        setTitle(pageData.page.title || '');
+        toast({
+          title: "Error updating title",
+          description: "There was an issue updating the title. Please try again.",
+          variant: "destructive"
+        });
+      })
+      .finally(() => {
+        setIsEditingTitle(false);
+      });
+  }, [pageId, title, pageData, updatePageTitle]);
   
   const handleTagAdd = function() {
     if (!newTag.trim() || tags.includes(newTag.trim())) {
@@ -326,7 +330,9 @@ const PageView = () => {
                       variant="ghost" 
                       size="icon" 
                       className="h-7 w-7"
-                      onClick={() => setIsEditingTitle(true)}
+                      onClick={() => {
+                        setIsEditingTitle(true);
+                      }}
                     >
                       <Edit2 className="h-4 w-4" />
                     </Button>

@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useMemo } from 'react';
 import { toast } from './use-toast';
 import { supabase } from '@/lib/supabase';

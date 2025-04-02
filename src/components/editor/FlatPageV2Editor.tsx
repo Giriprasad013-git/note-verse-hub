@@ -1,11 +1,19 @@
 
 import React, { useState, useEffect } from 'react';
-import { Layout, Save, Bold, Italic, List, Heading, Link as LinkIcon } from 'lucide-react';
+import { Layout, Save, Bold, Italic, List, Heading, Link as LinkIcon, Type } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Button from '@/components/common/Button';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/hooks/use-toast';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue, 
+} from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
 
 interface FlatPageV2EditorProps {
   initialContent?: string;
@@ -23,6 +31,8 @@ const FlatPageV2Editor: React.FC<FlatPageV2EditorProps> = ({
   const [content, setContent] = useState(initialContent);
   const [viewMode, setViewMode] = useState<'edit' | 'preview'>('edit');
   const [isEditing, setIsEditing] = useState(false);
+  const [fontSize, setFontSize] = useState(16);
+  const [fontFamily, setFontFamily] = useState('sans');
   
   // Initialize content when initialContent changes
   useEffect(() => {
@@ -86,6 +96,14 @@ const FlatPageV2Editor: React.FC<FlatPageV2EditorProps> = ({
       textarea.setSelectionRange(start + markdown.length, start + markdown.length);
     }, 0);
   };
+
+  const getFontFamilyClass = () => {
+    switch (fontFamily) {
+      case 'serif': return 'font-serif';
+      case 'mono': return 'font-mono';
+      default: return 'font-sans';
+    }
+  };
   
   return (
     <div className={cn("flex flex-col h-full", className)}>
@@ -110,25 +128,55 @@ const FlatPageV2Editor: React.FC<FlatPageV2EditorProps> = ({
         </div>
       </div>
       
-      {viewMode === 'edit' && (
-        <div className="border-b p-2 flex gap-1 overflow-x-auto">
-          <Button size="sm" variant="ghost" onClick={() => insertMarkdown('# ')}>
-            <Heading className="h-4 w-4" />
-          </Button>
-          <Button size="sm" variant="ghost" onClick={() => insertMarkdown('**Bold text**')}>
-            <Bold className="h-4 w-4" />
-          </Button>
-          <Button size="sm" variant="ghost" onClick={() => insertMarkdown('*Italic text*')}>
-            <Italic className="h-4 w-4" />
-          </Button>
-          <Button size="sm" variant="ghost" onClick={() => insertMarkdown('- List item\n- Another item')}>
-            <List className="h-4 w-4" />
-          </Button>
-          <Button size="sm" variant="ghost" onClick={() => insertMarkdown('[Link text](https://example.com)')}>
-            <LinkIcon className="h-4 w-4" />
-          </Button>
-        </div>
-      )}
+      <div className="border-b p-2 flex flex-wrap gap-2 items-center">
+        {viewMode === 'edit' && (
+          <>
+            <div className="flex gap-1">
+              <Button size="sm" variant="ghost" onClick={() => insertMarkdown('# ')}>
+                <Heading className="h-4 w-4" />
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => insertMarkdown('**Bold text**')}>
+                <Bold className="h-4 w-4" />
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => insertMarkdown('*Italic text*')}>
+                <Italic className="h-4 w-4" />
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => insertMarkdown('- List item\n- Another item')}>
+                <List className="h-4 w-4" />
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => insertMarkdown('[Link text](https://example.com)')}>
+                <LinkIcon className="h-4 w-4" />
+              </Button>
+            </div>
+            
+            <div className="flex items-center gap-2 ml-2">
+              <Type className="h-4 w-4 text-muted-foreground" />
+              <Select value={fontFamily} onValueChange={setFontFamily}>
+                <SelectTrigger className="h-8 w-[120px]">
+                  <SelectValue placeholder="Font" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sans">Sans Serif</SelectItem>
+                  <SelectItem value="serif">Serif</SelectItem>
+                  <SelectItem value="mono">Monospace</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="flex items-center gap-2 ml-2">
+              <span className="text-xs text-muted-foreground">Size: {fontSize}px</span>
+              <Slider
+                className="w-24"
+                value={[fontSize]} 
+                min={12}
+                max={24}
+                step={1}
+                onValueChange={(value) => setFontSize(value[0])}
+              />
+            </div>
+          </>
+        )}
+      </div>
       
       <div className="flex-1 p-4 overflow-auto">
         {viewMode === 'edit' ? (
@@ -136,7 +184,11 @@ const FlatPageV2Editor: React.FC<FlatPageV2EditorProps> = ({
             value={content}
             onChange={handleChange}
             placeholder="Start typing your content here. You can use basic markdown syntax like # for headings, ** for bold, * for italic, and - for list items."
-            className="w-full h-full min-h-[calc(100vh-16rem)] p-4 text-base font-mono"
+            className={cn(
+              "w-full h-full min-h-[calc(100vh-16rem)] p-4 text-base", 
+              getFontFamilyClass()
+            )}
+            style={{ fontSize: `${fontSize}px` }}
           />
         ) : (
           <div className="bg-white rounded-md p-6 border">
