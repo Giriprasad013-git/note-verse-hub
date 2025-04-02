@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Clock, Bold, Italic, List, ListOrdered, Link as LinkIcon,
@@ -67,6 +66,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
   const isContentUpdating = useRef<boolean>(false);
   const initialContentRef = useRef<string>(initialContent);
   const lastSavedContentRef = useRef<string>(initialContent);
+  const contentInitialized = useRef<boolean>(false);
   
   const saveCursorPosition = useCallback(() => {
     if (document.getSelection) {
@@ -88,29 +88,48 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
   }, []);
   
   useEffect(() => {
+    if (initialContent && editorRef.current && !contentInitialized.current) {
+      editorRef.current.innerHTML = initialContent;
+      setContent(initialContent);
+      setHistoryStack([initialContent]);
+      setHistoryIndex(0);
+      initialContentRef.current = initialContent;
+      lastSavedContentRef.current = initialContent;
+      contentInitialized.current = true;
+      
+      applyStylesToContent(editorRef.current);
+    }
+  }, [initialContent]);
+  
+  useEffect(() => {
     if (!initialContent) return;
     
-    if (initialContent !== initialContentRef.current && editorRef.current) {
-      if (initialContent !== lastSavedContentRef.current) {
-        initialContentRef.current = initialContent;
-        lastSavedContentRef.current = initialContent;
-        
-        isContentUpdating.current = true;
-        
+    const contentChanged = initialContent !== initialContentRef.current;
+    const editorExists = editorRef.current !== null;
+    
+    if (contentChanged && editorExists) {
+      isContentUpdating.current = true;
+      
+      if (document.activeElement === editorRef.current) {
         saveCursorPosition();
-        
-        editorRef.current.innerHTML = initialContent;
-        setContent(initialContent);
-        setHistoryStack([initialContent]);
-        setHistoryIndex(0);
-        
-        applyStylesToContent(editorRef.current);
-        
-        setTimeout(() => {
-          restoreCursorPosition();
-          isContentUpdating.current = false;
-        }, 10);
       }
+      
+      editorRef.current.innerHTML = initialContent;
+      setContent(initialContent);
+      initialContentRef.current = initialContent;
+      lastSavedContentRef.current = initialContent;
+      
+      setHistoryStack([initialContent]);
+      setHistoryIndex(0);
+      
+      applyStylesToContent(editorRef.current);
+      
+      setTimeout(() => {
+        if (document.activeElement === editorRef.current) {
+          restoreCursorPosition();
+        }
+        isContentUpdating.current = false;
+      }, 10);
     }
   }, [initialContent, saveCursorPosition, restoreCursorPosition]);
   
@@ -685,6 +704,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
           onBlur={() => {
             setTimeout(saveCursorPosition, 50);
           }}
+          dangerouslySetInnerHTML={{ __html: initialContent }}
         />
       </div>
     </div>

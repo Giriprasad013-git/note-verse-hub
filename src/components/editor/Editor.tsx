@@ -1,4 +1,3 @@
-
 import React from 'react';
 import {
   BrainCircuit,
@@ -36,6 +35,8 @@ const Editor: React.FC<EditorProps> = ({
 }) => {
   // Ensure we have a valid initial content
   const safeInitialContent = initialContent || '';
+  
+  console.log("Editor rendering with content:", safeInitialContent.substring(0, 50) + "...");
   
   switch (pageType) {
     case 'richtext':
