@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Clock, Bold, Italic, List, ListOrdered, Link as LinkIcon,
@@ -26,6 +27,13 @@ interface RichTextEditorProps {
   pageId: string;
   onContentChange?: (content: string) => void;
   className?: string;
+}
+
+interface EditorToolbarButtonProps {
+  onClick: () => void;
+  icon: React.ReactNode;
+  tooltip: string;
+  disabled?: boolean;
 }
 
 const fontOptions = [
