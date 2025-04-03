@@ -67,8 +67,13 @@ const PageView = () => {
   };
   
   const handleTitleChange = useCallback(() => {
-    if (!title.trim() || !pageId || !pageData) {
-      setTitle(pageData?.page.title || '');
+    if (!pageId || !pageData) {
+      setIsEditingTitle(false);
+      return;
+    }
+    
+    if (!title.trim()) {
+      setTitle(pageData.page.title);
       setIsEditingTitle(false);
       return;
     }
@@ -312,15 +317,7 @@ const PageView = () => {
                       className="text-xl font-bold"
                       autoFocus
                       onBlur={handleTitleChange}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          handleTitleChange();
-                        } else if (e.key === 'Escape') {
-                          setTitle(pageData.page.title || '');
-                          setIsEditingTitle(false);
-                        }
-                      }}
+                      onKeyDown={handleKeyDown}
                     />
                   </div>
                 ) : (
@@ -330,9 +327,7 @@ const PageView = () => {
                       variant="ghost" 
                       size="icon" 
                       className="h-7 w-7"
-                      onClick={() => {
-                        setIsEditingTitle(true);
-                      }}
+                      onClick={() => setIsEditingTitle(true)}
                     >
                       <Edit2 className="h-4 w-4" />
                     </Button>

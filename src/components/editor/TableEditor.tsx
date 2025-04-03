@@ -1,6 +1,6 @@
 
-import React, { useState } from 'react';
-import { Table as TableIcon, Save, Plus, Delete, ArrowUpDown } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { Table as TableIcon, Save, Plus, Delete, ArrowUpDown, Upload, Download, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Button from '@/components/common/Button';
 import { Input } from '@/components/ui/input';
@@ -64,6 +64,7 @@ const TableEditor: React.FC<TableEditorProps> = ({
   const [isEditing, setIsEditing] = useState(false);
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const handleSave = () => {
     if (onContentChange) {
@@ -172,7 +173,7 @@ const TableEditor: React.FC<TableEditorProps> = ({
       // Remove column
       const newColumns = prev.columns.filter(column => column.id !== columnId);
       
-      // Remove column data from all rows
+      // Update rows
       const newRows = prev.rows.map(row => {
         const newCells = { ...row.cells };
         delete newCells[columnId];
@@ -200,6 +201,112 @@ const TableEditor: React.FC<TableEditorProps> = ({
     }
   };
   
+  // CSV Export function
+  const exportCSV = () => {
+    // Create header row with column names
+    const headerRow = data.columns.map(col => `"${col.name.replace(/"/g, '""')}"`).join(',');
+    
+    // Create data rows
+    const dataRows = data.rows.map(row => {
+      return data.columns.map(col => {
+        const cellValue = row.cells[col.id] || '';
+        return `"${cellValue.replace(/"/g, '""')}"`;
+      }).join(',');
+    });
+    
+    // Combine all rows
+    const csvContent = [headerRow, ...dataRows].join('\n');
+    
+    // Create download link
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'table-export.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    toast({
+      title: "CSV exported",
+      description: "Your table has been exported as CSV"
+    });
+  };
+
+  // CSV Import function
+  const importCSV = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const csvText = e.target?.result as string;
+        const lines = csvText.split('\n').map(line => 
+          line.split(',').map(cell => 
+            cell.trim().replace(/^"|"$/g, '').replace(/""/g, '"')
+          )
+        );
+        
+        if (lines.length < 2) {
+          throw new Error("CSV file must contain at least a header row and one data row");
+        }
+        
+        // Extract headers from first line
+        const headers = lines[0];
+        
+        // Create column structure
+        const newColumns: Column[] = headers.map((header, index) => ({
+          id: `col-${index}`,
+          name: header,
+          sortable: true
+        }));
+        
+        // Create rows
+        const newRows: Row[] = lines.slice(1)
+          .filter(line => line.length === headers.length && line.some(cell => cell.trim() !== ''))
+          .map((line, rowIndex) => {
+            const cells: { [key: string]: string } = {};
+            line.forEach((cell, cellIndex) => {
+              cells[`col-${cellIndex}`] = cell;
+            });
+            
+            return {
+              id: `row-${Date.now()}-${rowIndex}`,
+              cells
+            };
+          });
+        
+        // Update state
+        setData({
+          columns: newColumns,
+          rows: newRows
+        });
+        setIsEditing(true);
+        
+        toast({
+          title: "CSV imported",
+          description: `Imported ${newRows.length} rows and ${newColumns.length} columns`
+        });
+        
+      } catch (error) {
+        console.error("CSV import error:", error);
+        toast({
+          title: "Import failed",
+          description: "There was a problem importing your CSV file",
+          variant: "destructive"
+        });
+      }
+    };
+    
+    reader.readAsText(file);
+    
+    // Reset the input to allow importing the same file again
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+  
   // Sort data
   let sortedRows = [...data.rows];
   if (sortColumn) {
@@ -223,7 +330,7 @@ const TableEditor: React.FC<TableEditorProps> = ({
           <span className="font-medium">Table Editor</span>
         </div>
         
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Button variant="outline" onClick={addColumn}>
             <Plus className="h-4 w-4 mr-2" />
             Add Column
@@ -232,6 +339,25 @@ const TableEditor: React.FC<TableEditorProps> = ({
             <Plus className="h-4 w-4 mr-2" />
             Add Row
           </Button>
+
+          <div className="flex items-center gap-1">
+            <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
+              <Upload className="h-4 w-4 mr-2" />
+              Import CSV
+            </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv"
+              onChange={importCSV}
+              style={{ display: 'none' }}
+            />
+            <Button variant="outline" onClick={exportCSV}>
+              <Download className="h-4 w-4 mr-2" />
+              Export CSV
+            </Button>
+          </div>
+
           <Button onClick={handleSave} disabled={!isEditing}>
             <Save className="h-4 w-4 mr-2" />
             Save
@@ -245,12 +371,18 @@ const TableEditor: React.FC<TableEditorProps> = ({
             <TableIcon className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
             <h2 className="text-xl font-medium mb-2">No Table Data</h2>
             <p className="text-muted-foreground mb-4">
-              Start by adding columns and rows to your table.
+              Start by adding columns and rows to your table or import a CSV file.
             </p>
-            <Button onClick={addColumn}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Column
-            </Button>
+            <div className="flex items-center justify-center gap-2">
+              <Button onClick={addColumn}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Column
+              </Button>
+              <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
+                <Upload className="h-4 w-4 mr-2" />
+                Import CSV
+              </Button>
+            </div>
           </div>
         ) : (
           <div className="border rounded-md overflow-x-auto">
