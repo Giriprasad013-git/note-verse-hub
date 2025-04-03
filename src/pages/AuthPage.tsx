@@ -34,6 +34,7 @@ const AuthPage = () => {
   const location = useLocation();
   const { toast } = useToast();
   const [selectedAccount, setSelectedAccount] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Get the redirect path from query params or default to dashboard
   const from = new URLSearchParams(location.search).get('from') || '/dashboard';
@@ -58,33 +59,45 @@ const AuthPage = () => {
 
   const onLoginSubmit = async (data: z.infer<typeof loginSchema>) => {
     try {
+      setIsSubmitting(true);
+      console.log("Login submission with:", data);
       const { error } = await signIn(data.email, data.password);
       if (error) {
+        console.error("Login error:", error);
         toast({
           title: "Login failed",
-          description: error.message,
+          description: error.message || "Invalid email or password",
           variant: "destructive"
         });
       } else {
+        toast({
+          title: "Login successful",
+          description: "You have successfully logged in",
+        });
         navigate(from);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Login error:", error);
       toast({
         title: "Login error",
-        description: "An unexpected error occurred during login",
+        description: error.message || "An unexpected error occurred during login",
         variant: "destructive"
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const onRegisterSubmit = async (data: z.infer<typeof registerSchema>) => {
     try {
+      setIsSubmitting(true);
+      console.log("Register submission with:", data);
       const { error } = await signUp(data.email, data.password, data.username);
       if (error) {
+        console.error("Registration error:", error);
         toast({
           title: "Registration failed",
-          description: error.message,
+          description: error.message || "Failed to create account",
           variant: "destructive"
         });
       } else {
@@ -94,24 +107,27 @@ const AuthPage = () => {
         });
         setActiveTab('login');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Registration error:", error);
       toast({
         title: "Registration error",
-        description: "An unexpected error occurred during registration",
+        description: error.message || "An unexpected error occurred during registration",
         variant: "destructive"
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleGoogleSignIn = async () => {
     try {
+      console.log("Starting Google sign-in");
       await signInWithGoogle();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Google sign-in error:", error);
       toast({
         title: "Google sign-in error",
-        description: "An unexpected error occurred during Google sign-in",
+        description: error.message || "An unexpected error occurred during Google sign-in",
         variant: "destructive"
       });
     }
@@ -122,11 +138,11 @@ const AuthPage = () => {
     try {
       await switchAccount(selectedAccount);
       navigate(from);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Account switch error:", error);
       toast({
         title: "Account switch error",
-        description: "An unexpected error occurred when switching accounts",
+        description: error.message || "An unexpected error occurred when switching accounts",
         variant: "destructive"
       });
     }
@@ -202,7 +218,9 @@ const AuthPage = () => {
                     )}
                   />
                   
-                  <Button type="submit" className="w-full">Login</Button>
+                  <Button type="submit" className="w-full" disabled={isSubmitting}>
+                    {isSubmitting ? "Logging in..." : "Login"}
+                  </Button>
                 </form>
               </Form>
             </TabsContent>
@@ -252,7 +270,9 @@ const AuthPage = () => {
                     )}
                   />
                   
-                  <Button type="submit" className="w-full">Register</Button>
+                  <Button type="submit" className="w-full" disabled={isSubmitting}>
+                    {isSubmitting ? "Registering..." : "Register"}
+                  </Button>
                 </form>
               </Form>
             </TabsContent>

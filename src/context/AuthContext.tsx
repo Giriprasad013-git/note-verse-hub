@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Session, User } from '@supabase/supabase-js';
+import { toast } from '@/hooks/use-toast';
 
 type AuthContextType = {
   session: Session | null;
@@ -27,6 +28,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        console.log("Auth state changed:", event, session?.user?.email);
         setSession(session);
         setUser(session?.user ?? null);
         
@@ -39,6 +41,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log("Initial session check:", session?.user?.email);
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
@@ -75,21 +78,56 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return { error };
+    console.log("Signing in with:", email);
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      
+      if (error) {
+        console.error("Sign in error:", error);
+        return { error };
+      }
+      
+      console.log("Sign in successful:", data);
+      return { error: null };
+    } catch (error) {
+      console.error("Unexpected sign in error:", error);
+      return { error };
+    }
   };
 
   const signUp = async (email: string, password: string, username: string) => {
-    const { error } = await supabase.auth.signUp({ 
-      email, 
-      password,
-      options: {
-        data: {
-          username
+    console.log("Signing up with:", email, username);
+    try {
+      const { data, error } = await supabase.auth.signUp({ 
+        email, 
+        password,
+        options: {
+          data: {
+            username
+          }
         }
+      });
+      
+      if (error) {
+        console.error("Sign up error:", error);
+        return { error };
       }
-    });
-    return { error };
+      
+      console.log("Sign up successful:", data);
+      
+      // Check if email confirmation is required
+      if (data.user && !data.user.confirmed_at) {
+        toast({
+          title: "Verification email sent",
+          description: "Please check your email to complete registration"
+        });
+      }
+      
+      return { error: null };
+    } catch (error) {
+      console.error("Unexpected sign up error:", error);
+      return { error };
+    }
   };
 
   const signOut = async () => {
@@ -111,6 +149,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const account = availableAccounts.find(acc => acc.id === userId);
     if (account) {
       // For demonstration - in reality, you'd prompt for password again
+      toast({
+        title: "Account switching",
+        description: "In a real app, this would prompt for credentials"
+      });
+      // Simplified approach for demo
       await signIn(account.email, '');
     }
   };
