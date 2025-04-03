@@ -20,28 +20,26 @@ const queryClient = new QueryClient();
 
 const App = () => {
   return (
-    <React.StrictMode>
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <BrowserRouter>
-            <TooltipProvider>
-              <Toaster />
-              <Sonner />
-              <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/notebook/:notebookId" element={<NotebookView />} />
-                <Route path="/notebook/:notebookId/section/:sectionId" element={<SectionView />} />
-                <Route path="/page/:pageId" element={<PageView />} />
-                <Route path="/new-page/:notebookId/:sectionId" element={<NewPage />} />
-                <Route path="/auth" element={<AuthPage />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </TooltipProvider>
-          </BrowserRouter>
-        </AuthProvider>
-      </QueryClientProvider>
-    </React.StrictMode>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <BrowserRouter>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/notebook/:notebookId" element={<NotebookView />} />
+              <Route path="/notebook/:notebookId/section/:sectionId" element={<SectionView />} />
+              <Route path="/page/:pageId" element={<PageView />} />
+              <Route path="/new-page/:notebookId/:sectionId" element={<NewPage />} />
+              <Route path="/auth" element={<AuthPage />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </TooltipProvider>
+        </BrowserRouter>
+      </AuthProvider>
+    </QueryClientProvider>
   );
 };
 

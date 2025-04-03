@@ -57,43 +57,79 @@ const AuthPage = () => {
   });
 
   const onLoginSubmit = async (data: z.infer<typeof loginSchema>) => {
-    const { error } = await signIn(data.email, data.password);
-    if (error) {
+    try {
+      const { error } = await signIn(data.email, data.password);
+      if (error) {
+        toast({
+          title: "Login failed",
+          description: error.message,
+          variant: "destructive"
+        });
+      } else {
+        navigate(from);
+      }
+    } catch (error) {
+      console.error("Login error:", error);
       toast({
-        title: "Login failed",
-        description: error.message,
+        title: "Login error",
+        description: "An unexpected error occurred during login",
         variant: "destructive"
       });
-    } else {
-      navigate(from);
     }
   };
 
   const onRegisterSubmit = async (data: z.infer<typeof registerSchema>) => {
-    const { error } = await signUp(data.email, data.password, data.username);
-    if (error) {
+    try {
+      const { error } = await signUp(data.email, data.password, data.username);
+      if (error) {
+        toast({
+          title: "Registration failed",
+          description: error.message,
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Registration successful",
+          description: "Please check your email to confirm your account."
+        });
+        setActiveTab('login');
+      }
+    } catch (error) {
+      console.error("Registration error:", error);
       toast({
-        title: "Registration failed",
-        description: error.message,
+        title: "Registration error",
+        description: "An unexpected error occurred during registration",
         variant: "destructive"
       });
-    } else {
-      toast({
-        title: "Registration successful",
-        description: "Please check your email to confirm your account."
-      });
-      setActiveTab('login');
     }
   };
 
   const handleGoogleSignIn = async () => {
-    await signInWithGoogle();
+    try {
+      await signInWithGoogle();
+    } catch (error) {
+      console.error("Google sign-in error:", error);
+      toast({
+        title: "Google sign-in error",
+        description: "An unexpected error occurred during Google sign-in",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleAccountSwitch = async () => {
     if (!selectedAccount) return;
-    await switchAccount(selectedAccount);
-    navigate(from);
+    try {
+      await switchAccount(selectedAccount);
+      navigate(from);
+    } catch (error) {
+      console.error("Account switch error:", error);
+      toast({
+        title: "Account switch error",
+        description: "An unexpected error occurred when switching accounts",
+        variant: "destructive"
+      });
+    }
   };
 
   return (
@@ -104,7 +140,7 @@ const AuthPage = () => {
           <CardDescription>Sign in or create an account to continue</CardDescription>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue={activeTab} onValueChange={setActiveTab}>
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="login">Login</TabsTrigger>
               <TabsTrigger value="register">Register</TabsTrigger>
