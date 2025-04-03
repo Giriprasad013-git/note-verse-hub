@@ -16,24 +16,28 @@ import NewPage from "./pages/NewPage";
 // Create a client
 const queryClient = new QueryClient();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/notebook/:notebookId" element={<NotebookView />} />
-          <Route path="/notebook/:notebookId/section/:sectionId" element={<SectionView />} />
-          <Route path="/page/:pageId" element={<PageView />} />
-          <Route path="/new-page/:notebookId/:sectionId" element={<NewPage />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+const App = () => {
+  return (
+    <React.StrictMode>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/notebook/:notebookId" element={<NotebookView />} />
+              <Route path="/notebook/:notebookId/section/:sectionId" element={<SectionView />} />
+              <Route path="/page/:pageId" element={<PageView />} />
+              <Route path="/new-page/:notebookId/:sectionId" element={<NewPage />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </QueryClientProvider>
+    </React.StrictMode>
+  );
+};
 
 export default App;
