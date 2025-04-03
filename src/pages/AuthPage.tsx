@@ -14,11 +14,13 @@ import { z } from 'zod';
 import { FcGoogle } from 'react-icons/fc';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AlertCircle } from 'lucide-react';
 
 const loginSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email address' }),
   password: z.string().min(6, { message: 'Password must be at least 6 characters' }),
-  duration: z.string().optional()
+  duration: z.string()
 });
 
 const registerSchema = z.object({
@@ -35,6 +37,7 @@ const AuthPage = () => {
   const { toast } = useToast();
   const [selectedAccount, setSelectedAccount] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [emailNotConfirmedError, setEmailNotConfirmedError] = useState(false);
 
   // Get the redirect path from query params or default to dashboard
   const from = new URLSearchParams(location.search).get('from') || '/dashboard';
@@ -44,7 +47,7 @@ const AuthPage = () => {
     defaultValues: {
       email: '',
       password: '',
-      duration: '30 Minutes'
+      duration: 'permanent'
     }
   });
 
@@ -60,15 +63,22 @@ const AuthPage = () => {
   const onLoginSubmit = async (data: z.infer<typeof loginSchema>) => {
     try {
       setIsSubmitting(true);
+      setEmailNotConfirmedError(false);
       console.log("Login submission with:", data);
       const { error } = await signIn(data.email, data.password);
       if (error) {
         console.error("Login error:", error);
-        toast({
-          title: "Login failed",
-          description: error.message || "Invalid email or password",
-          variant: "destructive"
-        });
+        
+        // Check specifically for email not confirmed error
+        if (error.message?.includes('Email not confirmed')) {
+          setEmailNotConfirmedError(true);
+        } else {
+          toast({
+            title: "Login failed",
+            description: error.message || "Invalid email or password",
+            variant: "destructive"
+          });
+        }
       } else {
         toast({
           title: "Login successful",
@@ -103,7 +113,7 @@ const AuthPage = () => {
       } else {
         toast({
           title: "Registration successful",
-          description: "Please check your email to confirm your account."
+          description: "Please check your email to confirm your account.",
         });
         setActiveTab('login');
       }
@@ -163,6 +173,15 @@ const AuthPage = () => {
             </TabsList>
             
             <TabsContent value="login" className="mt-4">
+              {emailNotConfirmedError && (
+                <Alert variant="destructive" className="mb-4">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    Your email address has not been confirmed. Please check your inbox for the confirmation email.
+                  </AlertDescription>
+                </Alert>
+              )}
+              
               <Form {...loginForm}>
                 <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4">
                   <FormField
@@ -211,6 +230,7 @@ const AuthPage = () => {
                             <SelectItem value="8 Hours">8 Hours</SelectItem>
                             <SelectItem value="1 Day">1 Day</SelectItem>
                             <SelectItem value="7 Days">7 Days</SelectItem>
+                            <SelectItem value="permanent">Permanent</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />

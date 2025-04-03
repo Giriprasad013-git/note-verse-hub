@@ -80,7 +80,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const signIn = async (email: string, password: string) => {
     console.log("Signing in with:", email);
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      // Set session to permanent (indefinite) to avoid expiry
+      const { data, error } = await supabase.auth.signInWithPassword({ 
+        email, 
+        password,
+        options: {
+          // This extends the session for as long as possible
+          expiresIn: 365 * 24 * 60 * 60 // 1 year in seconds
+        }
+      });
       
       if (error) {
         console.error("Sign in error:", error);
