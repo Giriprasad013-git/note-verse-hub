@@ -12,14 +12,16 @@ import SectionView from "./pages/SectionView";
 import PageView from "./pages/PageView";
 import NotFound from "./pages/NotFound";
 import NewPage from "./pages/NewPage";
+import AuthPage from "./pages/AuthPage";
+import { AuthProvider } from "./context/AuthContext";
 
 // Create a client
 const queryClient = new QueryClient();
 
 const App = () => {
   return (
-    <React.StrictMode>
-      <QueryClientProvider client={queryClient}>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
         <TooltipProvider>
           <Toaster />
           <Sonner />
@@ -31,12 +33,13 @@ const App = () => {
               <Route path="/notebook/:notebookId/section/:sectionId" element={<SectionView />} />
               <Route path="/page/:pageId" element={<PageView />} />
               <Route path="/new-page/:notebookId/:sectionId" element={<NewPage />} />
+              <Route path="/auth" element={<AuthPage />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
         </TooltipProvider>
-      </QueryClientProvider>
-    </React.StrictMode>
+      </AuthProvider>
+    </QueryClientProvider>
   );
 };
 
