@@ -3,12 +3,17 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
+import { toast } from '@/hooks/use-toast';
 
 const Index = () => {
   const { user, signOut, signInAsGuest, isGuest } = useAuth();
 
   const handleGuestAccess = () => {
     signInAsGuest();
+    toast({
+      title: "Guest mode active",
+      description: "You can now access the app as a guest. Your data will be stored locally in your browser."
+    });
   };
 
   return (
@@ -21,11 +26,13 @@ const Index = () => {
         
         {user || isGuest ? (
           <div className="space-y-4">
-            <p className="text-green-600">
-              {isGuest ? 'Using as guest' : `Logged in as ${user?.email}`}
+            <p className="text-green-600 font-medium">
+              {isGuest 
+                ? 'Using as guest - your data is stored locally' 
+                : `Logged in as ${user?.email || 'User'}`}
             </p>
             <div className="flex flex-col space-y-4 sm:flex-row sm:space-y-0 sm:space-x-4 justify-center">
-              <Button asChild>
+              <Button asChild variant="default">
                 <Link to="/dashboard">Go to Dashboard</Link>
               </Button>
               <Button variant="outline" onClick={signOut}>
@@ -35,7 +42,7 @@ const Index = () => {
           </div>
         ) : (
           <div className="flex flex-col space-y-4 sm:flex-row sm:space-y-0 sm:space-x-4 justify-center">
-            <Button asChild>
+            <Button asChild variant="default">
               <Link to="/auth">Sign In / Register</Link>
             </Button>
             <Button variant="outline" onClick={handleGuestAccess}>

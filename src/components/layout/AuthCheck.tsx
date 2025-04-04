@@ -32,5 +32,6 @@ export const AuthCheck = ({
     );
   }
 
+  // Either authenticated user or allowed guest
   return (user || (allowGuest && isGuest)) ? <>{children}</> : null;
 };

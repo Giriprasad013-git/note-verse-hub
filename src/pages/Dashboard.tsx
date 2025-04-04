@@ -9,6 +9,7 @@ import NotebookItem from '@/components/notebook/NotebookItem';
 import { useNotebooks } from '@/hooks/useNotebooks';
 import { useAuth } from '@/context/AuthContext';
 import { AuthCheck } from '@/components/layout/AuthCheck';
+import { toast } from '@/hooks/use-toast';
 
 const Dashboard = () => {
   const { notebooks, isLoading, createNotebook } = useNotebooks();
@@ -28,19 +29,30 @@ const Dashboard = () => {
         'New Notebook', 
         'Created on ' + new Date().toLocaleDateString()
       );
+      
+      toast({
+        title: "Notebook created",
+        description: `"${newNotebook.title}" has been created successfully.`,
+      });
+      
       navigate(`/notebook/${newNotebook.id}`);
     } catch (error) {
       console.error('Failed to create notebook:', error);
+      toast({
+        title: "Error creating notebook",
+        description: "There was a problem creating your notebook.",
+        variant: "destructive"
+      });
     }
   };
 
-  // Content to render whether authenticated or as guest
+  // Content to display in the dashboard
   const dashboardContent = (
     <div className="flex h-screen">
       <Sidebar />
       
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Header title="Dashboard" />
+        <Header title={isGuest ? "Guest Dashboard" : "My Dashboard"} />
         
         <main className="flex-1 overflow-auto p-6">
           <div className="max-w-6xl mx-auto">
@@ -94,7 +106,7 @@ const Dashboard = () => {
     </div>
   );
 
-  return user || isGuest ? dashboardContent : <AuthCheck>{dashboardContent}</AuthCheck>;
+  return <AuthCheck allowGuest>{dashboardContent}</AuthCheck>;
 };
 
 export default Dashboard;
