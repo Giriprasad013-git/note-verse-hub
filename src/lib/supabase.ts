@@ -9,8 +9,9 @@ export const isUsingMockData = false;
 // Export the client
 export const supabase = supabaseClient;
 
-// Helper function to convert UUID string to Supabase UUID type
-export const toUUID = (id: string) => id as unknown as Database['public']['Tables']['notebooks']['Row']['user_id'];
+// Helper function to handle user ID for use with RLS policies
+// Our RLS policies are now comparing auth.uid()::TEXT with user_id (TEXT type)
+export const toUUID = (id: string) => id;
 
 // Define a mock client type that matches the structure we need - for compatibility
 export const mockSupabaseClient = {

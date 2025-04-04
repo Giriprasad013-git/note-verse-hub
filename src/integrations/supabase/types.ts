@@ -47,6 +47,7 @@ export type Database = {
           tags: string[] | null
           title: string
           type: string | null
+          user_id: string | null
         }
         Insert: {
           content?: string | null
@@ -58,6 +59,7 @@ export type Database = {
           tags?: string[] | null
           title: string
           type?: string | null
+          user_id?: string | null
         }
         Update: {
           content?: string | null
@@ -69,6 +71,7 @@ export type Database = {
           tags?: string[] | null
           title?: string
           type?: string | null
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -111,6 +114,7 @@ export type Database = {
           notebook_id: number
           order: number | null
           title: string
+          user_id: string | null
         }
         Insert: {
           created_at?: string | null
@@ -118,6 +122,7 @@ export type Database = {
           notebook_id: number
           order?: number | null
           title: string
+          user_id?: string | null
         }
         Update: {
           created_at?: string | null
@@ -125,6 +130,7 @@ export type Database = {
           notebook_id?: number
           order?: number | null
           title?: string
+          user_id?: string | null
         }
         Relationships: [
           {

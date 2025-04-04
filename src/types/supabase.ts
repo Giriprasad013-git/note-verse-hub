@@ -43,6 +43,7 @@ export interface Database {
           title: string
           notebook_id: number
           order: number
+          user_id: string  // Added user_id field
         }
         Insert: {
           id?: number  // Make id optional for insert operations
@@ -50,6 +51,7 @@ export interface Database {
           title: string
           notebook_id: number
           order?: number
+          user_id?: string  // Make user_id optional for insert (trigger will set it)
         }
         Update: {
           id?: number
@@ -57,6 +59,7 @@ export interface Database {
           title?: string
           notebook_id?: number
           order?: number
+          user_id?: string
         }
       }
       pages: {
@@ -70,6 +73,7 @@ export interface Database {
           last_edited_at: string
           tags: string[] | null
           order: number
+          user_id: string  // Added user_id field
         }
         Insert: {
           id?: number  // Make id optional for insert operations
@@ -81,6 +85,7 @@ export interface Database {
           last_edited_at?: string
           tags?: string[] | null
           order?: number
+          user_id?: string  // Make user_id optional for insert (trigger will set it)
         }
         Update: {
           id?: number
@@ -92,6 +97,7 @@ export interface Database {
           last_edited_at?: string
           tags?: string[] | null
           order?: number
+          user_id?: string
         }
       }
     }
