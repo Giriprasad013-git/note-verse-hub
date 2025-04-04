@@ -18,9 +18,12 @@ export const AuthCheck = ({
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!loading && !user && !(allowGuest && isGuest && guestId)) {
-      const currentPath = window.location.pathname;
-      navigate(`${redirectTo}?from=${encodeURIComponent(currentPath)}`);
+    if (!loading) {
+      // If not authenticated and either guest mode is not allowed or there's no guest ID
+      if (!user && !(allowGuest && isGuest && guestId)) {
+        const currentPath = window.location.pathname;
+        navigate(`${redirectTo}?from=${encodeURIComponent(currentPath)}`);
+      }
     }
   }, [user, loading, navigate, redirectTo, isGuest, guestId, allowGuest]);
 
@@ -32,6 +35,6 @@ export const AuthCheck = ({
     );
   }
 
-  // Either authenticated user or allowed guest
+  // Render children if user is authenticated or guest is allowed and active
   return (user || (allowGuest && isGuest && guestId)) ? <>{children}</> : null;
 };

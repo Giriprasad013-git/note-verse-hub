@@ -3,6 +3,7 @@ import React from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { ArrowLeft, Clock, FileText, History, Search, Share, Menu } from 'lucide-react';
 import Button from '../common/Button';
+import UserSettings from './UserSettings';
 
 interface HeaderProps {
   title?: string;
@@ -53,6 +54,8 @@ const Header: React.FC<HeaderProps> = ({ title, showBackButton = false, toggleSi
           <Share className="h-4 w-4 mr-1.5" />
           Share
         </Button>
+        
+        <UserSettings />
       </div>
     </header>
   );

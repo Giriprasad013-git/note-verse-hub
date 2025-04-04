@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { 
@@ -35,7 +34,6 @@ const Sidebar = () => {
   const [newNotebookTitle, setNewNotebookTitle] = useState('');
   const [newNotebookDescription, setNewNotebookDescription] = useState('');
 
-  // Auto-expand based on current route
   useEffect(() => {
     if (params.notebookId) {
       setExpandedNotebooks(prev => ({
@@ -109,7 +107,6 @@ const Sidebar = () => {
     closeNewNotebookDialog();
   };
 
-  // Filter notebooks based on search query
   const filteredNotebooks = searchQuery
     ? notebooks.filter(notebook => 
         notebook.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -251,18 +248,7 @@ const Sidebar = () => {
       </div>
       
       <div className="border-t border-border p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-full bg-muted"></div>
-            <div>
-              <p className="text-sm font-medium">User Name</p>
-              <p className="text-xs text-muted-foreground">user@example.com</p>
-            </div>
-          </div>
-          <Button variant="ghost" size="icon">
-            <Settings className="h-4 w-4" />
-          </Button>
-        </div>
+        <UserSettings />
       </div>
       
       <Dialog open={isNewNotebookDialogOpen} onOpenChange={setIsNewNotebookDialogOpen}>
