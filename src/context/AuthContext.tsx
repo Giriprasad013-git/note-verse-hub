@@ -15,6 +15,7 @@ type AuthContextType = {
   signInWithGoogle: () => Promise<void>;
   signInAsGuest: () => Promise<void>;
   isGuest: boolean;
+  guestId: string | null;
   availableAccounts: any[];
   switchAccount: (userId: string) => Promise<void>;
 };
@@ -30,6 +31,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [availableAccounts, setAvailableAccounts] = useState<any[]>([]);
   const [isGuest, setIsGuest] = useState<boolean>(false);
+  const [guestId, setGuestId] = useState<string | null>(null);
 
   useEffect(() => {
     // Set up auth state listener
@@ -39,6 +41,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setSession(session);
         setUser(session?.user ?? null);
         setIsGuest(false); // Reset guest status when auth state changes
+        setGuestId(null);  // Clear guest ID when auth state changes
         
         // When auth state changes, update available accounts
         setTimeout(() => {
@@ -56,11 +59,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setSession(session);
         setUser(session.user);
         setIsGuest(false);
+        setGuestId(null);
       } else {
         // Check if there's a guest user
         const guestUser = localStorage.getItem(GUEST_USER_KEY);
         if (guestUser) {
           setIsGuest(true);
+          setGuestId(guestUser);
           // We don't set session or user here as they remain null for guest users
         }
       }
@@ -117,6 +122,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       // Clear guest user if exists
       localStorage.removeItem(GUEST_USER_KEY);
       setIsGuest(false);
+      setGuestId(null);
       
       console.log("Sign in successful:", data);
       return { error: null };
@@ -149,6 +155,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       // Clear guest user if exists
       localStorage.removeItem(GUEST_USER_KEY);
       setIsGuest(false);
+      setGuestId(null);
       
       // Check if email confirmation is required
       if (data.user && !data.user.confirmed_at) {
@@ -169,6 +176,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     // Clear guest user if exists
     localStorage.removeItem(GUEST_USER_KEY);
     setIsGuest(false);
+    setGuestId(null);
     await supabase.auth.signOut();
   };
 
@@ -176,6 +184,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     // Clear guest user if exists
     localStorage.removeItem(GUEST_USER_KEY);
     setIsGuest(false);
+    setGuestId(null);
     
     await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -187,9 +196,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signInAsGuest = async () => {
     // Create a unique identifier for the guest user
-    const guestId = uuidv4();
-    localStorage.setItem(GUEST_USER_KEY, guestId);
+    const newGuestId = uuidv4();
+    localStorage.setItem(GUEST_USER_KEY, newGuestId);
     setIsGuest(true);
+    setGuestId(newGuestId);
     
     toast({
       title: "Signed in as guest",
@@ -222,6 +232,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     signInWithGoogle,
     signInAsGuest,
     isGuest,
+    guestId,
     availableAccounts,
     switchAccount
   };

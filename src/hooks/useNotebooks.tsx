@@ -1,7 +1,6 @@
-
 import { useState, useEffect, useMemo } from 'react';
 import { toast } from './use-toast';
-import { supabase } from '@/lib/supabase';
+import { supabase, toUUID } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 
 // Type definitions
@@ -47,13 +46,13 @@ export function useNotebooks() {
   const [autoSaveStatus, setAutoSaveStatus] = useState<'saved' | 'saving' | 'error'>('saved');
   
   // Get auth context to check if user is logged in or using guest mode
-  const { user, isGuest } = useAuth();
+  const { user, isGuest, guestId } = useAuth();
 
   // Load notebooks from either Supabase or local storage when component mounts
   useEffect(() => {
     if (!isInitialized) {
-      if (isGuest) {
-        loadGuestNotebooks();
+      if (isGuest && guestId) {
+        loadGuestNotebooks(guestId);
       } else if (user) {
         fetchUserNotebooks();
       } else {
@@ -63,18 +62,19 @@ export function useNotebooks() {
         setIsInitialized(true);
       }
     }
-  }, [user, isGuest, isInitialized]);
+  }, [user, isGuest, guestId, isInitialized]);
 
-  const loadGuestNotebooks = () => {
+  const loadGuestNotebooks = (guestUserId: string) => {
     try {
       setIsLoading(true);
-      const storedNotebooks = localStorage.getItem(GUEST_NOTEBOOKS_KEY);
+      const storageKey = `${GUEST_NOTEBOOKS_KEY}_${guestUserId}`;
+      const storedNotebooks = localStorage.getItem(storageKey);
       if (storedNotebooks) {
         setNotebooks(JSON.parse(storedNotebooks));
       } else {
         // Create a default notebook for first-time guest users
-        const defaultNotebook = createDefaultGuestNotebook();
-        saveGuestNotebooks([defaultNotebook]);
+        const defaultNotebook = createDefaultGuestNotebook(guestUserId);
+        saveGuestNotebooks([defaultNotebook], guestUserId);
         setNotebooks([defaultNotebook]);
       }
       setError(null);
@@ -88,7 +88,7 @@ export function useNotebooks() {
     }
   };
 
-  const createDefaultGuestNotebook = (): Notebook => {
+  const createDefaultGuestNotebook = (guestUserId: string): Notebook => {
     const now = new Date().toISOString();
     return {
       id: `guest-nb-${Date.now()}`,
@@ -116,18 +116,24 @@ export function useNotebooks() {
     };
   };
 
-  const saveGuestNotebooks = (notebooks: Notebook[]) => {
-    localStorage.setItem(GUEST_NOTEBOOKS_KEY, JSON.stringify(notebooks));
+  const saveGuestNotebooks = (notebooks: Notebook[], guestUserId: string) => {
+    const storageKey = `${GUEST_NOTEBOOKS_KEY}_${guestUserId}`;
+    localStorage.setItem(storageKey, JSON.stringify(notebooks));
   };
 
   const fetchUserNotebooks = async () => {
     try {
       setIsLoading(true);
       
+      if (!user) {
+        throw new Error("User not authenticated");
+      }
+      
       // Get notebooks
       const { data: notebooksData, error: notebooksError } = await supabase
         .from('notebooks')
         .select('*')
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
       
       if (notebooksError) throw notebooksError;
@@ -195,7 +201,7 @@ export function useNotebooks() {
       setIsInitialized(true);
     }
   };
-  
+
   // Helper function to format timestamps
   const formatTimestamp = (timestamp: string) => {
     if (!timestamp) return '';
@@ -283,15 +289,15 @@ export function useNotebooks() {
         });
         
         // If in guest mode, save to localStorage
-        if (isGuest) {
-          saveGuestNotebooks(updatedNotebooks);
+        if (isGuest && guestId) {
+          saveGuestNotebooks(updatedNotebooks, guestId);
         }
         
         return updatedNotebooks;
       });
       
       // If not in guest mode, update in Supabase
-      if (!isGuest) {
+      if (!isGuest && user) {
         // Convert string ID to number for Supabase
         const numericPageId = parseInt(pageId, 10);
         
@@ -341,15 +347,15 @@ export function useNotebooks() {
         });
         
         // If in guest mode, save to localStorage
-        if (isGuest) {
-          saveGuestNotebooks(updatedNotebooks);
+        if (isGuest && guestId) {
+          saveGuestNotebooks(updatedNotebooks, guestId);
         }
         
         return updatedNotebooks;
       });
       
       // If not in guest mode, update in Supabase
-      if (!isGuest) {
+      if (!isGuest && user) {
         // Update in Supabase - Convert string ID to number
         const numericPageId = parseInt(pageId, 10);
         
@@ -395,15 +401,15 @@ export function useNotebooks() {
         });
         
         // If in guest mode, save to localStorage
-        if (isGuest) {
-          saveGuestNotebooks(updatedNotebooks);
+        if (isGuest && guestId) {
+          saveGuestNotebooks(updatedNotebooks, guestId);
         }
         
         return updatedNotebooks;
       });
       
       // If not in guest mode, update in Supabase
-      if (!isGuest) {
+      if (!isGuest && user) {
         // Update in Supabase - Convert string ID to number
         const numericPageId = parseInt(pageId, 10);
         
@@ -449,15 +455,15 @@ export function useNotebooks() {
         });
         
         // If in guest mode, save to localStorage
-        if (isGuest) {
-          saveGuestNotebooks(updatedNotebooks);
+        if (isGuest && guestId) {
+          saveGuestNotebooks(updatedNotebooks, guestId);
         }
         
         return updatedNotebooks;
       });
       
       // If not in guest mode, delete from Supabase
-      if (!isGuest) {
+      if (!isGuest && user) {
         // Delete from Supabase - Convert string ID to number
         const numericPageId = parseInt(pageId, 10);
         
@@ -494,7 +500,7 @@ export function useNotebooks() {
     try {
       const now = new Date().toISOString();
       
-      if (isGuest) {
+      if (isGuest && guestId) {
         // Create notebook in localStorage for guest mode
         const newNotebook: Notebook = {
           id: `guest-nb-${Date.now()}`,
@@ -513,12 +519,12 @@ export function useNotebooks() {
         
         setNotebooks(prev => {
           const updatedNotebooks = [...prev, newNotebook];
-          saveGuestNotebooks(updatedNotebooks);
+          saveGuestNotebooks(updatedNotebooks, guestId);
           return updatedNotebooks;
         });
         
         return newNotebook;
-      } else {
+      } else if (user) {
         // First create notebook in Supabase - properly typed without id as it's auto-generated
         const { data: notebookData, error: notebookError } = await supabase
           .from('notebooks')
@@ -527,7 +533,7 @@ export function useNotebooks() {
             description,
             created_at: now,
             last_edited_at: now,
-            user_id: user?.id // Use actual user ID
+            user_id: user.id // Use actual user ID
           })
           .select()
           .single();
@@ -543,7 +549,7 @@ export function useNotebooks() {
             notebook_id: notebookData.id,
             created_at: now,
             order: 0,
-            user_id: user?.id // Use actual user ID
+            user_id: user.id // Use actual user ID
           })
           .select()
           .single();
@@ -569,6 +575,8 @@ export function useNotebooks() {
         
         setNotebooks(prev => [...prev, newNotebook]);
         return newNotebook;
+      } else {
+        throw new Error("User not authenticated");
       }
     } catch (error) {
       console.error("Error creating notebook:", error);
@@ -585,7 +593,7 @@ export function useNotebooks() {
     try {
       const now = new Date().toISOString();
       
-      if (isGuest) {
+      if (isGuest && guestId) {
         // Create section in localStorage for guest mode
         const newSectionId = `guest-sec-${Date.now()}`;
         
@@ -607,12 +615,12 @@ export function useNotebooks() {
             return notebook;
           });
           
-          saveGuestNotebooks(updatedNotebooks);
+          saveGuestNotebooks(updatedNotebooks, guestId);
           return updatedNotebooks;
         });
         
         return newSection;
-      } else {
+      } else if (user) {
         // Convert string ID to number for Supabase
         const numericNotebookId = parseInt(notebookId, 10);
         
@@ -638,7 +646,7 @@ export function useNotebooks() {
             notebook_id: numericNotebookId,
             created_at: now,
             order,
-            user_id: user?.id // Use actual user ID
+            user_id: user.id // Use actual user ID
           })
           .select()
           .single();
@@ -673,6 +681,8 @@ export function useNotebooks() {
         });
         
         return newSection;
+      } else {
+        throw new Error("User not authenticated");
       }
     } catch (error) {
       console.error("Error creating section:", error);
@@ -691,7 +701,7 @@ export function useNotebooks() {
       const validType = ensureValidPageType(type);
       const now = new Date().toISOString();
       
-      if (isGuest) {
+      if (isGuest && guestId) {
         // Create page in localStorage for guest mode
         const newPageId = `guest-page-${Date.now()}`;
         
@@ -727,12 +737,12 @@ export function useNotebooks() {
             return notebook;
           });
           
-          saveGuestNotebooks(updatedNotebooks);
+          saveGuestNotebooks(updatedNotebooks, guestId);
           return updatedNotebooks;
         });
         
         return newPage;
-      } else {
+      } else if (user) {
         // Convert string ID to number for Supabase
         const numericSectionId = parseInt(sectionId, 10);
         const numericNotebookId = parseInt(notebookId, 10);
@@ -763,7 +773,7 @@ export function useNotebooks() {
             last_edited_at: now,
             tags: [],
             order,
-            user_id: user?.id // Use actual user ID
+            user_id: user.id // Use actual user ID
           })
           .select()
           .single();
@@ -812,6 +822,8 @@ export function useNotebooks() {
         });
         
         return newPage;
+      } else {
+        throw new Error("User not authenticated");
       }
     } catch (error) {
       console.error("Error creating page:", error);

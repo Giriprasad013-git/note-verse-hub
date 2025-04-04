@@ -14,15 +14,15 @@ export const AuthCheck = ({
   redirectTo = '/auth', 
   allowGuest = true 
 }: AuthCheckProps) => {
-  const { user, loading, isGuest } = useAuth();
+  const { user, loading, isGuest, guestId } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!loading && !user && !(allowGuest && isGuest)) {
+    if (!loading && !user && !(allowGuest && isGuest && guestId)) {
       const currentPath = window.location.pathname;
       navigate(`${redirectTo}?from=${encodeURIComponent(currentPath)}`);
     }
-  }, [user, loading, navigate, redirectTo, isGuest, allowGuest]);
+  }, [user, loading, navigate, redirectTo, isGuest, guestId, allowGuest]);
 
   if (loading) {
     return (
@@ -33,5 +33,5 @@ export const AuthCheck = ({
   }
 
   // Either authenticated user or allowed guest
-  return (user || (allowGuest && isGuest)) ? <>{children}</> : null;
+  return (user || (allowGuest && isGuest && guestId)) ? <>{children}</> : null;
 };
