@@ -22,6 +22,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import Input from '../common/Input';
+import UserSettings from './UserSettings';
 
 const Sidebar = () => {
   const location = useLocation();
