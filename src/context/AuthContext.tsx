@@ -103,11 +103,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const signIn = async (email: string, password: string) => {
     console.log("Signing in with:", email);
     try {
-      // Set session to permanent (indefinite) to avoid expiry
+      // Sign in without the incorrect expiresIn option
       const { data, error } = await supabase.auth.signInWithPassword({ 
         email, 
         password
-        // Removed the incorrect options with expiresIn
       });
       
       if (error) {
