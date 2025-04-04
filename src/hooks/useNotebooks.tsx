@@ -1,6 +1,8 @@
+
 import { useState, useEffect, useMemo } from 'react';
 import { toast } from './use-toast';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/context/AuthContext';
 
 // Type definitions
 export interface Page {
@@ -34,95 +36,165 @@ const ensureValidPageType = (type: string | null): Page['type'] => {
   return (type && validTypes.includes(type as Page['type'])) ? (type as Page['type']) : 'richtext';
 };
 
+// Local storage keys for guest mode
+const GUEST_NOTEBOOKS_KEY = 'note_verse_guest_notebooks';
+
 export function useNotebooks() {
   const [notebooks, setNotebooks] = useState<Notebook[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
   const [autoSaveStatus, setAutoSaveStatus] = useState<'saved' | 'saving' | 'error'>('saved');
+  
+  // Get auth context to check if user is logged in or using guest mode
+  const { user, isGuest } = useAuth();
 
-  // Load notebooks from Supabase when component mounts
+  // Load notebooks from either Supabase or local storage when component mounts
   useEffect(() => {
     if (!isInitialized) {
-      const fetchNotebooks = async () => {
-        try {
-          setIsLoading(true);
-          
-          // Get notebooks
-          const { data: notebooksData, error: notebooksError } = await supabase
-            .from('notebooks')
+      if (isGuest) {
+        loadGuestNotebooks();
+      } else if (user) {
+        fetchUserNotebooks();
+      } else {
+        // Not logged in and not in guest mode, return empty list
+        setNotebooks([]);
+        setIsLoading(false);
+        setIsInitialized(true);
+      }
+    }
+  }, [user, isGuest, isInitialized]);
+
+  const loadGuestNotebooks = () => {
+    try {
+      setIsLoading(true);
+      const storedNotebooks = localStorage.getItem(GUEST_NOTEBOOKS_KEY);
+      if (storedNotebooks) {
+        setNotebooks(JSON.parse(storedNotebooks));
+      } else {
+        // Create a default notebook for first-time guest users
+        const defaultNotebook = createDefaultGuestNotebook();
+        saveGuestNotebooks([defaultNotebook]);
+        setNotebooks([defaultNotebook]);
+      }
+      setError(null);
+    } catch (err) {
+      console.error('Error loading guest notebooks:', err);
+      setError('Failed to load guest notebooks');
+      setNotebooks([]); 
+    } finally {
+      setIsLoading(false);
+      setIsInitialized(true);
+    }
+  };
+
+  const createDefaultGuestNotebook = (): Notebook => {
+    const now = new Date().toISOString();
+    return {
+      id: `guest-nb-${Date.now()}`,
+      title: 'My First Notebook',
+      description: 'Welcome to Note-Verse! This is your first notebook.',
+      sections: [
+        {
+          id: `guest-sec-${Date.now()}`,
+          title: 'Getting Started',
+          pages: [
+            {
+              id: `guest-page-${Date.now()}`,
+              title: 'Welcome to Note-Verse',
+              content: '<h1>Welcome to Note-Verse!</h1><p>This is your first page. You can edit it by clicking on the content.</p><p>Create more pages, sections, or notebooks to organize your notes.</p>',
+              lastEdited: 'just now',
+              createdAt: formatTimestamp(now),
+              tags: ['welcome', 'tutorial'],
+              type: 'richtext'
+            }
+          ]
+        }
+      ],
+      lastEdited: 'just now',
+      createdAt: formatTimestamp(now)
+    };
+  };
+
+  const saveGuestNotebooks = (notebooks: Notebook[]) => {
+    localStorage.setItem(GUEST_NOTEBOOKS_KEY, JSON.stringify(notebooks));
+  };
+
+  const fetchUserNotebooks = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Get notebooks
+      const { data: notebooksData, error: notebooksError } = await supabase
+        .from('notebooks')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (notebooksError) throw notebooksError;
+      
+      // Process each notebook to get its sections and pages
+      const notebooksWithSections = await Promise.all(
+        (notebooksData || []).map(async (notebook) => {
+          const { data: sectionsData, error: sectionsError } = await supabase
+            .from('sections')
             .select('*')
-            .order('created_at', { ascending: false });
+            .eq('notebook_id', notebook.id)
+            .order('order', { ascending: true });
           
-          if (notebooksError) throw notebooksError;
+          if (sectionsError) throw sectionsError;
           
-          // Process each notebook to get its sections and pages
-          const notebooksWithSections = await Promise.all(
-            (notebooksData || []).map(async (notebook) => {
-              const { data: sectionsData, error: sectionsError } = await supabase
-                .from('sections')
+          const sections = await Promise.all(
+            (sectionsData || []).map(async (section) => {
+              const { data: pagesData, error: pagesError } = await supabase
+                .from('pages')
                 .select('*')
-                .eq('notebook_id', notebook.id)
+                .eq('section_id', section.id)
                 .order('order', { ascending: true });
               
-              if (sectionsError) throw sectionsError;
+              if (pagesError) throw pagesError;
               
-              const sections = await Promise.all(
-                (sectionsData || []).map(async (section) => {
-                  const { data: pagesData, error: pagesError } = await supabase
-                    .from('pages')
-                    .select('*')
-                    .eq('section_id', section.id)
-                    .order('order', { ascending: true });
-                  
-                  if (pagesError) throw pagesError;
-                  
-                  const pages = (pagesData || []).map(page => ({
-                    id: String(page.id),
-                    title: page.title,
-                    content: page.content || '',
-                    lastEdited: formatTimestamp(page.last_edited_at),
-                    createdAt: formatTimestamp(page.created_at),
-                    tags: page.tags || [],
-                    type: ensureValidPageType(page.type)
-                  }));
-                  
-                  return {
-                    id: String(section.id),
-                    title: section.title,
-                    pages
-                  };
-                })
-              );
+              const pages = (pagesData || []).map(page => ({
+                id: String(page.id),
+                title: page.title,
+                content: page.content || '',
+                lastEdited: formatTimestamp(page.last_edited_at),
+                createdAt: formatTimestamp(page.created_at),
+                tags: page.tags || [],
+                type: ensureValidPageType(page.type)
+              }));
               
               return {
-                id: String(notebook.id),
-                title: notebook.title,
-                description: notebook.description || '',
-                sections,
-                lastEdited: formatTimestamp(notebook.last_edited_at),
-                createdAt: formatTimestamp(notebook.created_at)
+                id: String(section.id),
+                title: section.title,
+                pages
               };
             })
           );
           
-          setNotebooks(notebooksWithSections);
-          setError(null);
-        } catch (err) {
-          console.error('Error fetching notebooks:', err);
-          setError('Failed to fetch notebooks');
-          
-          // Use mock data as fallback
-          loadMockData();
-        } finally {
-          setIsLoading(false);
-          setIsInitialized(true);
-        }
-      };
+          return {
+            id: String(notebook.id),
+            title: notebook.title,
+            description: notebook.description || '',
+            sections,
+            lastEdited: formatTimestamp(notebook.last_edited_at),
+            createdAt: formatTimestamp(notebook.created_at)
+          };
+        })
+      );
       
-      fetchNotebooks();
+      setNotebooks(notebooksWithSections);
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching notebooks:', err);
+      setError('Failed to fetch notebooks');
+      
+      // Use mock data as fallback
+      loadMockData();
+    } finally {
+      setIsLoading(false);
+      setIsInitialized(true);
     }
-  }, [isInitialized]);
+  };
   
   // Helper function to format timestamps
   const formatTimestamp = (timestamp: string) => {
@@ -210,26 +282,34 @@ export function useNotebooks() {
           return { ...notebook, sections: updatedSections };
         });
         
+        // If in guest mode, save to localStorage
+        if (isGuest) {
+          saveGuestNotebooks(updatedNotebooks);
+        }
+        
         return updatedNotebooks;
       });
       
-      // Update in Supabase - Convert string ID to number for Supabase
-      const numericPageId = parseInt(pageId, 10);
-      
-      // Check if conversion was successful
-      if (isNaN(numericPageId)) {
-        throw new Error(`Invalid page ID: ${pageId}`);
+      // If not in guest mode, update in Supabase
+      if (!isGuest) {
+        // Convert string ID to number for Supabase
+        const numericPageId = parseInt(pageId, 10);
+        
+        // Check if conversion was successful
+        if (isNaN(numericPageId)) {
+          throw new Error(`Invalid page ID: ${pageId}`);
+        }
+        
+        const { error } = await supabase
+          .from('pages')
+          .update({ 
+            content: newContent,
+            last_edited_at: new Date().toISOString()
+          })
+          .eq('id', numericPageId);
+        
+        if (error) throw error;
       }
-      
-      const { error } = await supabase
-        .from('pages')
-        .update({ 
-          content: newContent,
-          last_edited_at: new Date().toISOString()
-        })
-        .eq('id', numericPageId);
-      
-      if (error) throw error;
       
       setAutoSaveStatus('saved');
     } catch (error) {
@@ -260,25 +340,33 @@ export function useNotebooks() {
           return { ...notebook, sections: updatedSections };
         });
         
+        // If in guest mode, save to localStorage
+        if (isGuest) {
+          saveGuestNotebooks(updatedNotebooks);
+        }
+        
         return updatedNotebooks;
       });
       
-      // Update in Supabase - Convert string ID to number
-      const numericPageId = parseInt(pageId, 10);
-      
-      if (isNaN(numericPageId)) {
-        throw new Error(`Invalid page ID: ${pageId}`);
+      // If not in guest mode, update in Supabase
+      if (!isGuest) {
+        // Update in Supabase - Convert string ID to number
+        const numericPageId = parseInt(pageId, 10);
+        
+        if (isNaN(numericPageId)) {
+          throw new Error(`Invalid page ID: ${pageId}`);
+        }
+        
+        const { error } = await supabase
+          .from('pages')
+          .update({ 
+            title: newTitle,
+            last_edited_at: new Date().toISOString()
+          })
+          .eq('id', numericPageId);
+        
+        if (error) throw error;
       }
-      
-      const { error } = await supabase
-        .from('pages')
-        .update({ 
-          title: newTitle,
-          last_edited_at: new Date().toISOString()
-        })
-        .eq('id', numericPageId);
-      
-      if (error) throw error;
     } catch (error) {
       console.error("Error updating page title:", error);
       throw error;
@@ -306,25 +394,33 @@ export function useNotebooks() {
           return { ...notebook, sections: updatedSections };
         });
         
+        // If in guest mode, save to localStorage
+        if (isGuest) {
+          saveGuestNotebooks(updatedNotebooks);
+        }
+        
         return updatedNotebooks;
       });
       
-      // Update in Supabase - Convert string ID to number
-      const numericPageId = parseInt(pageId, 10);
-      
-      if (isNaN(numericPageId)) {
-        throw new Error(`Invalid page ID: ${pageId}`);
+      // If not in guest mode, update in Supabase
+      if (!isGuest) {
+        // Update in Supabase - Convert string ID to number
+        const numericPageId = parseInt(pageId, 10);
+        
+        if (isNaN(numericPageId)) {
+          throw new Error(`Invalid page ID: ${pageId}`);
+        }
+        
+        const { error } = await supabase
+          .from('pages')
+          .update({ 
+            tags: newTags,
+            last_edited_at: new Date().toISOString()
+          })
+          .eq('id', numericPageId);
+        
+        if (error) throw error;
       }
-      
-      const { error } = await supabase
-        .from('pages')
-        .update({ 
-          tags: newTags,
-          last_edited_at: new Date().toISOString()
-        })
-        .eq('id', numericPageId);
-      
-      if (error) throw error;
     } catch (error) {
       console.error("Error updating page tags:", error);
       throw error;
@@ -352,34 +448,42 @@ export function useNotebooks() {
           return { ...notebook, sections: updatedSections };
         });
         
+        // If in guest mode, save to localStorage
+        if (isGuest) {
+          saveGuestNotebooks(updatedNotebooks);
+        }
+        
         return updatedNotebooks;
       });
       
-      // Delete from Supabase - Convert string ID to number
-      const numericPageId = parseInt(pageId, 10);
-      
-      if (isNaN(numericPageId)) {
-        throw new Error(`Invalid page ID: ${pageId}`);
+      // If not in guest mode, delete from Supabase
+      if (!isGuest) {
+        // Delete from Supabase - Convert string ID to number
+        const numericPageId = parseInt(pageId, 10);
+        
+        if (isNaN(numericPageId)) {
+          throw new Error(`Invalid page ID: ${pageId}`);
+        }
+        
+        const { error } = await supabase
+          .from('pages')
+          .delete()
+          .eq('id', numericPageId);
+        
+        if (error) throw error;
+        
+        // Update notebook's last_edited_at - Convert string ID to number
+        const numericNotebookId = parseInt(pageInfo.notebook.id, 10);
+        
+        if (isNaN(numericNotebookId)) {
+          throw new Error(`Invalid notebook ID: ${pageInfo.notebook.id}`);
+        }
+        
+        await supabase
+          .from('notebooks')
+          .update({ last_edited_at: new Date().toISOString() })
+          .eq('id', numericNotebookId);
       }
-      
-      const { error } = await supabase
-        .from('pages')
-        .delete()
-        .eq('id', numericPageId);
-      
-      if (error) throw error;
-      
-      // Update notebook's last_edited_at - Convert string ID to number
-      const numericNotebookId = parseInt(pageInfo.notebook.id, 10);
-      
-      if (isNaN(numericNotebookId)) {
-        throw new Error(`Invalid notebook ID: ${pageInfo.notebook.id}`);
-      }
-      
-      await supabase
-        .from('notebooks')
-        .update({ last_edited_at: new Date().toISOString() })
-        .eq('id', numericNotebookId);
     } catch (error) {
       console.error("Error deleting page:", error);
       throw error;
@@ -388,58 +492,84 @@ export function useNotebooks() {
 
   const createNotebook = async (title: string, description: string) => {
     try {
-      // Send insert request to Supabase
       const now = new Date().toISOString();
       
-      // First create notebook in Supabase - properly typed without id as it's auto-generated
-      const { data: notebookData, error: notebookError } = await supabase
-        .from('notebooks')
-        .insert({
+      if (isGuest) {
+        // Create notebook in localStorage for guest mode
+        const newNotebook: Notebook = {
+          id: `guest-nb-${Date.now()}`,
           title,
           description,
-          created_at: now,
-          last_edited_at: now,
-          user_id: 'anonymous' // Replace with actual user ID when auth is implemented
-        })
-        .select()
-        .single();
-      
-      if (notebookError) throw notebookError;
-      if (!notebookData) throw new Error("Failed to create notebook");
-      
-      // Create default section
-      const { data: sectionData, error: sectionError } = await supabase
-        .from('sections')
-        .insert({
-          title: 'Default Section',
-          notebook_id: notebookData.id,
-          created_at: now,
-          order: 0
-        })
-        .select()
-        .single();
-      
-      if (sectionError) throw sectionError;
-      if (!sectionData) throw new Error("Failed to create section");
-      
-      // Update local state
-      const newNotebook: Notebook = {
-        id: String(notebookData.id),
-        title,
-        description,
-        sections: [
-          {
-            id: String(sectionData.id),
+          sections: [
+            {
+              id: `guest-sec-${Date.now()}`,
+              title: 'Default Section',
+              pages: []
+            }
+          ],
+          lastEdited: 'just now',
+          createdAt: formatTimestamp(now),
+        };
+        
+        setNotebooks(prev => {
+          const updatedNotebooks = [...prev, newNotebook];
+          saveGuestNotebooks(updatedNotebooks);
+          return updatedNotebooks;
+        });
+        
+        return newNotebook;
+      } else {
+        // First create notebook in Supabase - properly typed without id as it's auto-generated
+        const { data: notebookData, error: notebookError } = await supabase
+          .from('notebooks')
+          .insert({
+            title,
+            description,
+            created_at: now,
+            last_edited_at: now,
+            user_id: user?.id // Use actual user ID
+          })
+          .select()
+          .single();
+        
+        if (notebookError) throw notebookError;
+        if (!notebookData) throw new Error("Failed to create notebook");
+        
+        // Create default section
+        const { data: sectionData, error: sectionError } = await supabase
+          .from('sections')
+          .insert({
             title: 'Default Section',
-            pages: []
-          }
-        ],
-        lastEdited: 'just now',
-        createdAt: formatTimestamp(now),
-      };
-      
-      setNotebooks(prev => [...prev, newNotebook]);
-      return newNotebook;
+            notebook_id: notebookData.id,
+            created_at: now,
+            order: 0,
+            user_id: user?.id // Use actual user ID
+          })
+          .select()
+          .single();
+        
+        if (sectionError) throw sectionError;
+        if (!sectionData) throw new Error("Failed to create section");
+        
+        // Update local state
+        const newNotebook: Notebook = {
+          id: String(notebookData.id),
+          title,
+          description,
+          sections: [
+            {
+              id: String(sectionData.id),
+              title: 'Default Section',
+              pages: []
+            }
+          ],
+          lastEdited: 'just now',
+          createdAt: formatTimestamp(now),
+        };
+        
+        setNotebooks(prev => [...prev, newNotebook]);
+        return newNotebook;
+      }
     } catch (error) {
       console.error("Error creating notebook:", error);
       toast({
@@ -455,65 +585,95 @@ export function useNotebooks() {
     try {
       const now = new Date().toISOString();
       
-      // Convert string ID to number for Supabase
-      const numericNotebookId = parseInt(notebookId, 10);
-      
-      if (isNaN(numericNotebookId)) {
-        throw new Error(`Invalid notebook ID: ${notebookId}`);
-      }
-      
-      // Get current sections count for order
-      const { data, error: countError } = await supabase
-        .from('sections')
-        .select('id')
-        .eq('notebook_id', numericNotebookId);
-      
-      if (countError) throw countError;
-      
-      const order = data?.length || 0;
-      
-      // Create section in Supabase
-      const { data: sectionData, error } = await supabase
-        .from('sections')
-        .insert({
+      if (isGuest) {
+        // Create section in localStorage for guest mode
+        const newSectionId = `guest-sec-${Date.now()}`;
+        
+        const newSection: Section = {
+          id: newSectionId,
           title,
-          notebook_id: numericNotebookId,
-          created_at: now,
-          order
-        })
-        .select()
-        .single();
-      
-      if (error) throw error;
-      if (!sectionData) throw new Error("Failed to create section");
-      
-      // Update notebook's last_edited_at
-      await supabase
-        .from('notebooks')
-        .update({ last_edited_at: now })
-        .eq('id', numericNotebookId);
-      
-      // Update local state
-      const newSection: Section = {
-        id: String(sectionData.id),
-        title,
-        pages: [],
-      };
-      
-      setNotebooks(currentNotebooks => {
-        return currentNotebooks.map(notebook => {
-          if (notebook.id === notebookId) {
-            return {
-              ...notebook,
-              sections: [...notebook.sections, newSection],
-              lastEdited: 'just now'
-            };
-          }
-          return notebook;
+          pages: [],
+        };
+        
+        setNotebooks(currentNotebooks => {
+          const updatedNotebooks = currentNotebooks.map(notebook => {
+            if (notebook.id === notebookId) {
+              return {
+                ...notebook,
+                sections: [...notebook.sections, newSection],
+                lastEdited: 'just now'
+              };
+            }
+            return notebook;
+          });
+          
+          saveGuestNotebooks(updatedNotebooks);
+          return updatedNotebooks;
         });
-      });
-      
-      return newSection;
+        
+        return newSection;
+      } else {
+        // Convert string ID to number for Supabase
+        const numericNotebookId = parseInt(notebookId, 10);
+        
+        if (isNaN(numericNotebookId)) {
+          throw new Error(`Invalid notebook ID: ${notebookId}`);
+        }
+        
+        // Get current sections count for order
+        const { data, error: countError } = await supabase
+          .from('sections')
+          .select('id')
+          .eq('notebook_id', numericNotebookId);
+        
+        if (countError) throw countError;
+        
+        const order = data?.length || 0;
+        
+        // Create section in Supabase
+        const { data: sectionData, error } = await supabase
+          .from('sections')
+          .insert({
+            title,
+            notebook_id: numericNotebookId,
+            created_at: now,
+            order,
+            user_id: user?.id // Use actual user ID
+          })
+          .select()
+          .single();
+        
+        if (error) throw error;
+        if (!sectionData) throw new Error("Failed to create section");
+        
+        // Update notebook's last_edited_at
+        await supabase
+          .from('notebooks')
+          .update({ last_edited_at: now })
+          .eq('id', numericNotebookId);
+        
+        // Update local state
+        const newSection: Section = {
+          id: String(sectionData.id),
+          title,
+          pages: [],
+        };
+        
+        setNotebooks(currentNotebooks => {
+          return currentNotebooks.map(notebook => {
+            if (notebook.id === notebookId) {
+              return {
+                ...notebook,
+                sections: [...notebook.sections, newSection],
+                lastEdited: 'just now'
+              };
+            }
+            return notebook;
+          });
+        });
+        
+        return newSection;
+      }
     } catch (error) {
       console.error("Error creating section:", error);
       toast({
@@ -529,87 +689,130 @@ export function useNotebooks() {
     try {
       // Validate the page type
       const validType = ensureValidPageType(type);
-      
-      // Convert string ID to number for Supabase
-      const numericSectionId = parseInt(sectionId, 10);
-      const numericNotebookId = parseInt(notebookId, 10);
-      
-      if (isNaN(numericSectionId) || isNaN(numericNotebookId)) {
-        throw new Error(`Invalid IDs: notebookId=${notebookId}, sectionId=${sectionId}`);
-      }
-      
       const now = new Date().toISOString();
       
-      // Get current pages count for order
-      const { data, error: countError } = await supabase
-        .from('pages')
-        .select('id')
-        .eq('section_id', numericSectionId);
-      
-      if (countError) throw countError;
-      
-      const order = data?.length || 0;
-      
-      // Create page in Supabase
-      const { data: pageData, error } = await supabase
-        .from('pages')
-        .insert({
+      if (isGuest) {
+        // Create page in localStorage for guest mode
+        const newPageId = `guest-page-${Date.now()}`;
+        
+        const newPage: Page = {
+          id: newPageId,
           title,
           content: '',
-          section_id: numericSectionId,
-          type: validType,
-          created_at: now,
-          last_edited_at: now,
+          lastEdited: 'just now',
+          createdAt: formatTimestamp(now),
           tags: [],
-          order
-        })
-        .select()
-        .single();
-      
-      if (error) throw error;
-      if (!pageData) throw new Error("Failed to create page");
-      
-      // Update notebook's last_edited_at
-      await supabase
-        .from('notebooks')
-        .update({ last_edited_at: now })
-        .eq('id', numericNotebookId);
-      
-      const newPage: Page = {
-        id: String(pageData.id),
-        title,
-        content: '',
-        lastEdited: 'just now',
-        createdAt: formatTimestamp(now),
-        tags: [],
-        type: validType
-      };
-      
-      // Update the notebooks state with the new page
-      setNotebooks(currentNotebooks => {
-        return currentNotebooks.map(notebook => {
-          if (notebook.id === notebookId) {
-            const updatedSections = notebook.sections.map(section => {
-              if (section.id === sectionId) {
-                return {
-                  ...section,
-                  pages: [...section.pages, newPage]
-                };
-              }
-              return section;
-            });
-            
-            return {
-              ...notebook,
-              sections: updatedSections,
-              lastEdited: 'just now'
-            };
-          }
-          return notebook;
+          type: validType
+        };
+        
+        setNotebooks(currentNotebooks => {
+          const updatedNotebooks = currentNotebooks.map(notebook => {
+            if (notebook.id === notebookId) {
+              const updatedSections = notebook.sections.map(section => {
+                if (section.id === sectionId) {
+                  return {
+                    ...section,
+                    pages: [...section.pages, newPage]
+                  };
+                }
+                return section;
+              });
+              
+              return {
+                ...notebook,
+                sections: updatedSections,
+                lastEdited: 'just now'
+              };
+            }
+            return notebook;
+          });
+          
+          saveGuestNotebooks(updatedNotebooks);
+          return updatedNotebooks;
         });
-      });
-      
-      return newPage;
+        
+        return newPage;
+      } else {
+        // Convert string ID to number for Supabase
+        const numericSectionId = parseInt(sectionId, 10);
+        const numericNotebookId = parseInt(notebookId, 10);
+        
+        if (isNaN(numericSectionId) || isNaN(numericNotebookId)) {
+          throw new Error(`Invalid IDs: notebookId=${notebookId}, sectionId=${sectionId}`);
+        }
+        
+        // Get current pages count for order
+        const { data, error: countError } = await supabase
+          .from('pages')
+          .select('id')
+          .eq('section_id', numericSectionId);
+        
+        if (countError) throw countError;
+        
+        const order = data?.length || 0;
+        
+        // Create page in Supabase
+        const { data: pageData, error } = await supabase
+          .from('pages')
+          .insert({
+            title,
+            content: '',
+            section_id: numericSectionId,
+            type: validType,
+            created_at: now,
+            last_edited_at: now,
+            tags: [],
+            order,
+            user_id: user?.id // Use actual user ID
+          })
+          .select()
+          .single();
+        
+        if (error) throw error;
+        if (!pageData) throw new Error("Failed to create page");
+        
+        // Update notebook's last_edited_at
+        await supabase
+          .from('notebooks')
+          .update({ last_edited_at: now })
+          .eq('id', numericNotebookId);
+        
+        const newPage: Page = {
+          id: String(pageData.id),
+          title,
+          content: '',
+          lastEdited: 'just now',
+          createdAt: formatTimestamp(now),
+          tags: [],
+          type: validType
+        };
+        
+        // Update the notebooks state with the new page
+        setNotebooks(currentNotebooks => {
+          return currentNotebooks.map(notebook => {
+            if (notebook.id === notebookId) {
+              const updatedSections = notebook.sections.map(section => {
+                if (section.id === sectionId) {
+                  return {
+                    ...section,
+                    pages: [...section.pages, newPage]
+                  };
+                }
+                return section;
+              });
+              
+              return {
+                ...notebook,
+                sections: updatedSections,
+                lastEdited: 'just now'
+              };
+            }
+            return notebook;
+          });
+        });
+        
+        return newPage;
+      }
     } catch (error) {
       console.error("Error creating page:", error);
       toast({

@@ -1,24 +1,41 @@
 
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Sidebar from '@/components/layout/Sidebar';
 import Button from '@/components/common/Button';
 import NotebookItem from '@/components/notebook/NotebookItem';
 import { useNotebooks } from '@/hooks/useNotebooks';
+import { useAuth } from '@/context/AuthContext';
+import { AuthCheck } from '@/components/layout/AuthCheck';
 
 const Dashboard = () => {
-  const { notebooks, isLoading } = useNotebooks();
+  const { notebooks, isLoading, createNotebook } = useNotebooks();
+  const { user, isGuest } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
+  const navigate = useNavigate();
 
   const filteredNotebooks = searchQuery
     ? notebooks.filter(notebook => 
         notebook.title.toLowerCase().includes(searchQuery.toLowerCase())
       )
     : notebooks;
+  
+  const handleCreateNotebook = async () => {
+    try {
+      const newNotebook = await createNotebook(
+        'New Notebook', 
+        'Created on ' + new Date().toLocaleDateString()
+      );
+      navigate(`/notebook/${newNotebook.id}`);
+    } catch (error) {
+      console.error('Failed to create notebook:', error);
+    }
+  };
 
-  return (
+  // Content to render whether authenticated or as guest
+  const dashboardContent = (
     <div className="flex h-screen">
       <Sidebar />
       
@@ -28,8 +45,10 @@ const Dashboard = () => {
         <main className="flex-1 overflow-auto p-6">
           <div className="max-w-6xl mx-auto">
             <div className="flex items-center justify-between mb-6">
-              <h1 className="text-2xl font-bold">My Notebooks</h1>
-              <Button className="gap-2">
+              <h1 className="text-2xl font-bold">
+                {isGuest ? 'Guest Notebooks' : 'My Notebooks'}
+              </h1>
+              <Button className="gap-2" onClick={handleCreateNotebook}>
                 <Plus className="h-4 w-4" />
                 New Notebook
               </Button>
@@ -54,7 +73,7 @@ const Dashboard = () => {
             ) : filteredNotebooks.length === 0 ? (
               <div className="text-center py-12">
                 <p className="text-muted-foreground mb-4">No notebooks found.</p>
-                <Button>Create Notebook</Button>
+                <Button onClick={handleCreateNotebook}>Create Notebook</Button>
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -74,6 +93,8 @@ const Dashboard = () => {
       </div>
     </div>
   );
+
+  return user || isGuest ? dashboardContent : <AuthCheck>{dashboardContent}</AuthCheck>;
 };
 
 export default Dashboard;

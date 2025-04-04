@@ -3,6 +3,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Session, User } from '@supabase/supabase-js';
 import { toast } from '@/hooks/use-toast';
+import { v4 as uuidv4 } from 'uuid';
 
 type AuthContextType = {
   session: Session | null;
@@ -12,17 +13,23 @@ type AuthContextType = {
   signUp: (email: string, password: string, username: string) => Promise<{error: any}>;
   signOut: () => Promise<void>;
   signInWithGoogle: () => Promise<void>;
+  signInAsGuest: () => Promise<void>;
+  isGuest: boolean;
   availableAccounts: any[];
   switchAccount: (userId: string) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Guest user data stored in local storage
+const GUEST_USER_KEY = 'note_verse_guest_user';
+
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [availableAccounts, setAvailableAccounts] = useState<any[]>([]);
+  const [isGuest, setIsGuest] = useState<boolean>(false);
 
   useEffect(() => {
     // Set up auth state listener
@@ -31,6 +38,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         console.log("Auth state changed:", event, session?.user?.email);
         setSession(session);
         setUser(session?.user ?? null);
+        setIsGuest(false); // Reset guest status when auth state changes
         
         // When auth state changes, update available accounts
         setTimeout(() => {
@@ -39,16 +47,31 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     );
 
-    // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    // Check for existing session or guest user
+    const initializeAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
       console.log("Initial session check:", session?.user?.email);
-      setSession(session);
-      setUser(session?.user ?? null);
+      
+      if (session) {
+        setSession(session);
+        setUser(session.user);
+        setIsGuest(false);
+      } else {
+        // Check if there's a guest user
+        const guestUser = localStorage.getItem(GUEST_USER_KEY);
+        if (guestUser) {
+          setIsGuest(true);
+          // We don't set session or user here as they remain null for guest users
+        }
+      }
+      
       setLoading(false);
       
       // Get available accounts from local storage
       updateAvailableAccounts();
-    });
+    };
+
+    initializeAuth();
 
     return () => subscription.unsubscribe();
   }, []);
@@ -95,6 +118,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return { error };
       }
       
+      // Clear guest user if exists
+      localStorage.removeItem(GUEST_USER_KEY);
+      setIsGuest(false);
+      
       console.log("Sign in successful:", data);
       return { error: null };
     } catch (error) {
@@ -123,6 +150,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       
       console.log("Sign up successful:", data);
       
+      // Clear guest user if exists
+      localStorage.removeItem(GUEST_USER_KEY);
+      setIsGuest(false);
+      
       // Check if email confirmation is required
       if (data.user && !data.user.confirmed_at) {
         toast({
@@ -139,15 +170,34 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const signOut = async () => {
+    // Clear guest user if exists
+    localStorage.removeItem(GUEST_USER_KEY);
+    setIsGuest(false);
     await supabase.auth.signOut();
   };
 
   const signInWithGoogle = async () => {
+    // Clear guest user if exists
+    localStorage.removeItem(GUEST_USER_KEY);
+    setIsGuest(false);
+    
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
         redirectTo: window.location.origin + '/dashboard'
       }
+    });
+  };
+
+  const signInAsGuest = async () => {
+    // Create a unique identifier for the guest user
+    const guestId = uuidv4();
+    localStorage.setItem(GUEST_USER_KEY, guestId);
+    setIsGuest(true);
+    
+    toast({
+      title: "Signed in as guest",
+      description: "Your data will only be stored in this browser."
     });
   };
 
@@ -174,6 +224,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     signUp,
     signOut,
     signInWithGoogle,
+    signInAsGuest,
+    isGuest,
     availableAccounts,
     switchAccount
   };

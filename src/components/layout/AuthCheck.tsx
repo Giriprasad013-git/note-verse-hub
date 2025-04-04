@@ -6,18 +6,23 @@ import { useAuth } from '@/context/AuthContext';
 interface AuthCheckProps {
   children: React.ReactNode;
   redirectTo?: string;
+  allowGuest?: boolean;
 }
 
-export const AuthCheck = ({ children, redirectTo = '/auth' }: AuthCheckProps) => {
-  const { user, loading } = useAuth();
+export const AuthCheck = ({ 
+  children, 
+  redirectTo = '/auth', 
+  allowGuest = true 
+}: AuthCheckProps) => {
+  const { user, loading, isGuest } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!loading && !user) {
+    if (!loading && !user && !(allowGuest && isGuest)) {
       const currentPath = window.location.pathname;
       navigate(`${redirectTo}?from=${encodeURIComponent(currentPath)}`);
     }
-  }, [user, loading, navigate, redirectTo]);
+  }, [user, loading, navigate, redirectTo, isGuest, allowGuest]);
 
   if (loading) {
     return (
@@ -27,5 +32,5 @@ export const AuthCheck = ({ children, redirectTo = '/auth' }: AuthCheckProps) =>
     );
   }
 
-  return user ? <>{children}</> : null;
+  return (user || (allowGuest && isGuest)) ? <>{children}</> : null;
 };

@@ -5,7 +5,11 @@ import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 
 const Index = () => {
-  const { user, signOut } = useAuth();
+  const { user, signOut, signInAsGuest, isGuest } = useAuth();
+
+  const handleGuestAccess = () => {
+    signInAsGuest();
+  };
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100">
@@ -15,10 +19,10 @@ const Index = () => {
           Your digital notebook for organizing thoughts, ideas, and knowledge.
         </p>
         
-        {user ? (
+        {user || isGuest ? (
           <div className="space-y-4">
             <p className="text-green-600">
-              Logged in as {user.email}
+              {isGuest ? 'Using as guest' : `Logged in as ${user?.email}`}
             </p>
             <div className="flex flex-col space-y-4 sm:flex-row sm:space-y-0 sm:space-x-4 justify-center">
               <Button asChild>
@@ -34,8 +38,8 @@ const Index = () => {
             <Button asChild>
               <Link to="/auth">Sign In / Register</Link>
             </Button>
-            <Button variant="outline" asChild>
-              <Link to="/dashboard">Continue as Guest</Link>
+            <Button variant="outline" onClick={handleGuestAccess}>
+              Continue as Guest
             </Button>
           </div>
         )}
