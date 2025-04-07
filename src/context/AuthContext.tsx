@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Session, User } from '@supabase/supabase-js';
 import { toast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
+import { useNavigate } from 'react-router-dom';
 
 type AuthContextType = {
   session: Session | null;
@@ -177,7 +178,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     localStorage.removeItem(GUEST_USER_KEY);
     setIsGuest(false);
     setGuestId(null);
+    
+    // Sign out from Supabase
     await supabase.auth.signOut();
+
+    // Use toast to notify user
+    toast({
+      title: "Signed out successfully",
+      description: "You have been logged out of your account"
+    });
+    
+    // No need to manually redirect here as the AuthCheck component will handle redirection
   };
 
   const signInWithGoogle = async () => {

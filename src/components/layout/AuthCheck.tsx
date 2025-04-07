@@ -1,6 +1,6 @@
 
 import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 
 interface AuthCheckProps {
@@ -16,16 +16,17 @@ export const AuthCheck = ({
 }: AuthCheckProps) => {
   const { user, loading, isGuest, guestId } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     if (!loading) {
       // If not authenticated and either guest mode is not allowed or there's no guest ID
       if (!user && !(allowGuest && isGuest && guestId)) {
-        const currentPath = window.location.pathname;
-        navigate(`${redirectTo}?from=${encodeURIComponent(currentPath)}`);
+        const currentPath = location.pathname;
+        navigate(`${redirectTo}?from=${encodeURIComponent(currentPath)}`, { replace: true });
       }
     }
-  }, [user, loading, navigate, redirectTo, isGuest, guestId, allowGuest]);
+  }, [user, loading, navigate, redirectTo, isGuest, guestId, allowGuest, location.pathname]);
 
   if (loading) {
     return (
