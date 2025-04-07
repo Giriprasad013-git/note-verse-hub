@@ -33,7 +33,12 @@ const PageView = () => {
   const [title, setTitle] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState('');
-  const [showSidebar, setShowSidebar] = useState(!isMobile);
+  
+  const [showSidebar, setShowSidebar] = useState(() => {
+    const saved = localStorage.getItem('showSidebar');
+    return saved !== null ? JSON.parse(saved) : !isMobile;
+  });
+  
   const titleInputRef = useRef<HTMLInputElement>(null);
   
   useEffect(() => {
@@ -44,8 +49,14 @@ const PageView = () => {
   }, [pageData]);
   
   useEffect(() => {
-    setShowSidebar(!isMobile);
+    if (localStorage.getItem('showSidebar') === null) {
+      setShowSidebar(!isMobile);
+    }
   }, [isMobile]);
+  
+  useEffect(() => {
+    localStorage.setItem('showSidebar', JSON.stringify(showSidebar));
+  }, [showSidebar]);
   
   useEffect(() => {
     if (isEditingTitle && titleInputRef.current) {
@@ -247,9 +258,9 @@ const PageView = () => {
   if (isLoading) {
     return (
       <div className="flex h-screen">
-        <Sidebar />
+        {showSidebar && <Sidebar />}
         <div className="flex-1 flex flex-col">
-          <Header showBackButton />
+          <Header showBackButton toggleSidebar={() => setShowSidebar(prev => !prev)} />
           <div className="flex-1 p-6 flex items-center justify-center">
             <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
           </div>
@@ -261,9 +272,9 @@ const PageView = () => {
   if (!pageData) {
     return (
       <div className="flex h-screen">
-        <Sidebar />
+        {showSidebar && <Sidebar />}
         <div className="flex-1 flex flex-col">
-          <Header showBackButton />
+          <Header showBackButton toggleSidebar={() => setShowSidebar(prev => !prev)} />
           <div className="flex-1 p-6 flex items-center justify-center">
             <div className="text-center">
               <h2 className="text-xl font-medium mb-2">Page not found</h2>

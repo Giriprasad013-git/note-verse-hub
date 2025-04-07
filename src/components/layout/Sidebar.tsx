@@ -28,12 +28,29 @@ const Sidebar = () => {
   const location = useLocation();
   const params = useParams<{ notebookId?: string; sectionId?: string; pageId?: string }>();
   const { notebooks, isLoading, getPageById, createNotebook } = useNotebooks();
-  const [expandedNotebooks, setExpandedNotebooks] = useState<Record<string, boolean>>({});
-  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
+  
+  const [expandedNotebooks, setExpandedNotebooks] = useState<Record<string, boolean>>(() => {
+    const saved = localStorage.getItem('expandedNotebooks');
+    return saved ? JSON.parse(saved) : {};
+  });
+  
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>(() => {
+    const saved = localStorage.getItem('expandedSections');
+    return saved ? JSON.parse(saved) : {};
+  });
+  
   const [searchQuery, setSearchQuery] = useState('');
   const [isNewNotebookDialogOpen, setIsNewNotebookDialogOpen] = useState(false);
   const [newNotebookTitle, setNewNotebookTitle] = useState('');
   const [newNotebookDescription, setNewNotebookDescription] = useState('');
+
+  useEffect(() => {
+    localStorage.setItem('expandedNotebooks', JSON.stringify(expandedNotebooks));
+  }, [expandedNotebooks]);
+
+  useEffect(() => {
+    localStorage.setItem('expandedSections', JSON.stringify(expandedSections));
+  }, [expandedSections]);
 
   useEffect(() => {
     if (params.notebookId) {

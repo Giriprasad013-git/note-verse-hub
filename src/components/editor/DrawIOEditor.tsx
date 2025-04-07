@@ -21,6 +21,7 @@ const DrawIOEditor: React.FC<DrawIOEditorProps> = ({
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [editorContent, setEditorContent] = useState(initialContent);
   
   // Function to handle messages from the Draw.io iframe
   const handleMessage = (event: MessageEvent) => {
@@ -31,13 +32,16 @@ const DrawIOEditor: React.FC<DrawIOEditorProps> = ({
         // Handle initialization message
         if (message.event === 'init') {
           setIsLoaded(true);
+          console.log('Draw.io editor initialized');
           
-          // Load the initial content
-          if (initialContent && iframeRef.current?.contentWindow) {
+          // Load the content (either from state or initial prop)
+          const contentToLoad = editorContent || initialContent;
+          if (contentToLoad && iframeRef.current?.contentWindow) {
+            console.log('Loading content into Draw.io editor');
             iframeRef.current.contentWindow.postMessage(
               JSON.stringify({
                 action: 'load',
-                xml: initialContent,
+                xml: contentToLoad,
                 autosave: 1
               }), 
               '*'
@@ -47,6 +51,8 @@ const DrawIOEditor: React.FC<DrawIOEditorProps> = ({
         
         // Handle autosave message
         if (message.event === 'autosave' && message.xml) {
+          console.log('Auto-saving Draw.io content');
+          setEditorContent(message.xml);
           if (onContentChange) {
             onContentChange(message.xml);
           }
@@ -55,6 +61,8 @@ const DrawIOEditor: React.FC<DrawIOEditorProps> = ({
         
         // Handle save message
         if (message.event === 'save' && message.xml) {
+          console.log('Manually saving Draw.io content');
+          setEditorContent(message.xml);
           if (onContentChange) {
             onContentChange(message.xml);
             toast({
@@ -67,6 +75,7 @@ const DrawIOEditor: React.FC<DrawIOEditorProps> = ({
         
         // Handle exit message
         if (message.event === 'exit') {
+          console.log('Draw.io editor exit event received');
           // We can handle exiting here if needed
         }
       } catch (error) {
@@ -77,16 +86,40 @@ const DrawIOEditor: React.FC<DrawIOEditorProps> = ({
   
   // Add message event listener on mount
   useEffect(() => {
+    console.log('Setting up Draw.io message listener');
     window.addEventListener('message', handleMessage);
     
     return () => {
+      console.log('Cleaning up Draw.io message listener');
       window.removeEventListener('message', handleMessage);
     };
   }, []);
   
+  // Update editorContent when initialContent changes
+  useEffect(() => {
+    if (initialContent && initialContent !== editorContent) {
+      console.log('Initial content changed, updating editor content');
+      setEditorContent(initialContent);
+      
+      // If editor is already loaded, reload the content
+      if (isLoaded && iframeRef.current?.contentWindow) {
+        console.log('Reloading content into Draw.io editor');
+        iframeRef.current.contentWindow.postMessage(
+          JSON.stringify({
+            action: 'load',
+            xml: initialContent,
+            autosave: 1
+          }), 
+          '*'
+        );
+      }
+    }
+  }, [initialContent]);
+  
   // Function to manually trigger save
   const handleSave = () => {
     if (iframeRef.current?.contentWindow) {
+      console.log('Triggering manual save in Draw.io');
       setIsSaving(true);
       iframeRef.current.contentWindow.postMessage(
         JSON.stringify({ action: 'save' }), 
