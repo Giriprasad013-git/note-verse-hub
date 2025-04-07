@@ -22,17 +22,20 @@ const DrawIOEditor: React.FC<DrawIOEditorProps> = ({
   const [isLoaded, setIsLoaded] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [editorContent, setEditorContent] = useState(initialContent);
+  const initialLoadRef = useRef(false);
   
   // Function to handle messages from the Draw.io iframe
   const handleMessage = (event: MessageEvent) => {
     if (typeof event.data === 'string') {
       try {
         const message = JSON.parse(event.data);
+        console.log('Draw.io message received:', message.event);
         
         // Handle initialization message
         if (message.event === 'init') {
           setIsLoaded(true);
           console.log('Draw.io editor initialized');
+          initialLoadRef.current = true;
           
           // Load the content (either from state or initial prop)
           const contentToLoad = editorContent || initialContent;
@@ -114,7 +117,7 @@ const DrawIOEditor: React.FC<DrawIOEditorProps> = ({
         );
       }
     }
-  }, [initialContent]);
+  }, [initialContent, isLoaded]);
   
   // Function to manually trigger save
   const handleSave = () => {

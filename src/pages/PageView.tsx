@@ -35,8 +35,13 @@ const PageView = () => {
   const [newTag, setNewTag] = useState('');
   
   const [showSidebar, setShowSidebar] = useState(() => {
-    const saved = localStorage.getItem('showSidebar');
-    return saved !== null ? JSON.parse(saved) : !isMobile;
+    try {
+      const saved = localStorage.getItem('showSidebar');
+      return saved !== null ? JSON.parse(saved) : !isMobile;
+    } catch (error) {
+      console.error('Error parsing showSidebar from localStorage:', error);
+      return !isMobile;
+    }
   });
   
   const titleInputRef = useRef<HTMLInputElement>(null);
@@ -55,7 +60,12 @@ const PageView = () => {
   }, [isMobile]);
   
   useEffect(() => {
-    localStorage.setItem('showSidebar', JSON.stringify(showSidebar));
+    try {
+      localStorage.setItem('showSidebar', JSON.stringify(showSidebar));
+      console.log('Saving sidebar state to localStorage:', showSidebar);
+    } catch (error) {
+      console.error('Error saving showSidebar to localStorage:', error);
+    }
   }, [showSidebar]);
   
   useEffect(() => {
@@ -254,6 +264,8 @@ const PageView = () => {
         });
       });
   };
+  
+  console.log('PageView rendering, showSidebar:', showSidebar, 'pageId:', pageId);
   
   if (isLoading) {
     return (

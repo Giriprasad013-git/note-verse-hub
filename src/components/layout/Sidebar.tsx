@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { 
@@ -29,14 +30,25 @@ const Sidebar = () => {
   const params = useParams<{ notebookId?: string; sectionId?: string; pageId?: string }>();
   const { notebooks, isLoading, getPageById, createNotebook } = useNotebooks();
   
+  // Initialize with localStorage values if available
   const [expandedNotebooks, setExpandedNotebooks] = useState<Record<string, boolean>>(() => {
-    const saved = localStorage.getItem('expandedNotebooks');
-    return saved ? JSON.parse(saved) : {};
+    try {
+      const saved = localStorage.getItem('expandedNotebooks');
+      return saved ? JSON.parse(saved) : {};
+    } catch (error) {
+      console.error('Error parsing expandedNotebooks from localStorage:', error);
+      return {};
+    }
   });
   
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>(() => {
-    const saved = localStorage.getItem('expandedSections');
-    return saved ? JSON.parse(saved) : {};
+    try {
+      const saved = localStorage.getItem('expandedSections');
+      return saved ? JSON.parse(saved) : {};
+    } catch (error) {
+      console.error('Error parsing expandedSections from localStorage:', error);
+      return {};
+    }
   });
   
   const [searchQuery, setSearchQuery] = useState('');
@@ -44,14 +56,24 @@ const Sidebar = () => {
   const [newNotebookTitle, setNewNotebookTitle] = useState('');
   const [newNotebookDescription, setNewNotebookDescription] = useState('');
 
+  // Persist expanded states to localStorage whenever they change
   useEffect(() => {
-    localStorage.setItem('expandedNotebooks', JSON.stringify(expandedNotebooks));
+    try {
+      localStorage.setItem('expandedNotebooks', JSON.stringify(expandedNotebooks));
+    } catch (error) {
+      console.error('Error saving expandedNotebooks to localStorage:', error);
+    }
   }, [expandedNotebooks]);
 
   useEffect(() => {
-    localStorage.setItem('expandedSections', JSON.stringify(expandedSections));
+    try {
+      localStorage.setItem('expandedSections', JSON.stringify(expandedSections));
+    } catch (error) {
+      console.error('Error saving expandedSections to localStorage:', error);
+    }
   }, [expandedSections]);
 
+  // Expand notebooks and sections based on current route
   useEffect(() => {
     if (params.notebookId) {
       setExpandedNotebooks(prev => ({
@@ -136,6 +158,10 @@ const Sidebar = () => {
         )
       )
     : notebooks;
+
+  // Default to showing sidebar unless explicitly set to false
+  // Added logging to track the sidebar state
+  console.log('Rendering Sidebar component, notebooks:', notebooks.length);
 
   return (
     <aside className="h-screen w-64 flex-shrink-0 border-r border-border bg-background overflow-hidden flex flex-col animate-in">
