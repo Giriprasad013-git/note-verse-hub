@@ -38,6 +38,7 @@ const Editor: React.FC<EditorProps> = ({
   const safeInitialContent = initialContent || '';
   const lastContentRef = useRef(safeInitialContent);
   const lastPageIdRef = useRef(pageId);
+  const isEditingRef = useRef(false);
   
   console.log(`Editor rendering with type ${pageType} for page ${pageId}`);
   
@@ -49,8 +50,18 @@ const Editor: React.FC<EditorProps> = ({
       console.log(`Page changed from ${lastPageIdRef.current} to ${pageId}`);
       lastPageIdRef.current = pageId;
       lastContentRef.current = safeInitialContent;
+      isEditingRef.current = false;
     }
   }, [pageId, safeInitialContent]);
+  
+  // Wrap content change handler to track editing state
+  const handleContentChange = (content: string) => {
+    isEditingRef.current = true;
+    lastContentRef.current = content;
+    if (onContentChange) {
+      onContentChange(content);
+    }
+  };
   
   console.log(`Rendering editor for page ${pageId}, type: ${pageType}`);
   
@@ -60,7 +71,7 @@ const Editor: React.FC<EditorProps> = ({
         <RichTextEditor
           initialContent={safeInitialContent}
           pageId={pageId}
-          onContentChange={onContentChange}
+          onContentChange={handleContentChange}
           className={className}
         />
       );
@@ -69,7 +80,7 @@ const Editor: React.FC<EditorProps> = ({
         <DrawIOEditor
           initialContent={safeInitialContent}
           pageId={pageId}
-          onContentChange={onContentChange}
+          onContentChange={handleContentChange}
           className={className}
         />
       );
@@ -78,7 +89,7 @@ const Editor: React.FC<EditorProps> = ({
         <FlatPageEditor
           initialContent={safeInitialContent}
           pageId={pageId}
-          onContentChange={onContentChange}
+          onContentChange={handleContentChange}
           className={className}
         />
       );
@@ -87,7 +98,7 @@ const Editor: React.FC<EditorProps> = ({
         <FlatPageV2Editor
           initialContent={safeInitialContent}
           pageId={pageId}
-          onContentChange={onContentChange}
+          onContentChange={handleContentChange}
           className={className}
         />
       );
@@ -96,7 +107,7 @@ const Editor: React.FC<EditorProps> = ({
         <PageGroupEditor
           initialContent={safeInitialContent}
           pageId={pageId}
-          onContentChange={onContentChange}
+          onContentChange={handleContentChange}
           className={className}
         />
       );
@@ -105,7 +116,7 @@ const Editor: React.FC<EditorProps> = ({
         <SpreadsheetEditor
           initialContent={safeInitialContent}
           pageId={pageId}
-          onContentChange={onContentChange}
+          onContentChange={handleContentChange}
           className={className}
         />
       );
@@ -114,7 +125,7 @@ const Editor: React.FC<EditorProps> = ({
         <TableEditor
           initialContent={safeInitialContent}
           pageId={pageId}
-          onContentChange={onContentChange}
+          onContentChange={handleContentChange}
           className={className}
         />
       );
@@ -123,19 +134,25 @@ const Editor: React.FC<EditorProps> = ({
         <RichTextEditor
           initialContent={safeInitialContent}
           pageId={pageId}
-          onContentChange={onContentChange}
+          onContentChange={handleContentChange}
           className={className}
         />
       );
   }
 };
 
-// Use React.memo to prevent unnecessary re-renders
+// Use React.memo with a custom comparison function to prevent unnecessary re-renders
 export default memo(Editor, (prevProps, nextProps) => {
   // Only re-render if a significant prop changes
   const pageChanged = prevProps.pageId !== nextProps.pageId;
   const typeChanged = prevProps.pageType !== nextProps.pageType;
+  const initialContentChanged = 
+    prevProps.pageId === nextProps.pageId && 
+    prevProps.initialContent !== nextProps.initialContent &&
+    // Only consider initial content changes when loading a different page
+    nextProps.initialContent !== ''; 
   
-  // Allow re-renders when page or type changes, but not for minor content edits
-  return !pageChanged && !typeChanged;
+  // Allow re-renders when page or type changes, or when initial content changes for a new page
+  // but prevent re-renders during editing (which happens through onContentChange)
+  return !pageChanged && !typeChanged && !initialContentChanged;
 });
