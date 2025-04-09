@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { 
@@ -24,7 +23,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { getPageTypeIcon, getPageTypeName } from '@/components/editor/EditorTypes';
 
 // Constants
-const SIDEBAR_VISIBILITY_KEY = 'sidebarVisibility';
+const SIDEBAR_VISIBILITY_KEY = 'noteverse:sidebarVisibility';
 
 const PageView = () => {
   const { pageId } = useParams<{ pageId: string }>();
@@ -37,6 +36,7 @@ const PageView = () => {
   const [title, setTitle] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState('');
+  const contentUpdatesByEditor = useRef(false);
   
   // Get stored sidebar state with better error handling
   const getSavedSidebarState = () => {
@@ -59,12 +59,13 @@ const PageView = () => {
   // Setup page data
   useEffect(() => {
     if (pageData) {
+      console.log('PageView: Updating page data from backend');
       setTitle(pageData.page.title);
       setTags(pageData.page.tags || []);
     }
   }, [pageData]);
   
-  // Default sidebar visibility based on device
+  // Default sidebar visibility based on device, only on first load
   useEffect(() => {
     const savedValue = localStorage.getItem(SIDEBAR_VISIBILITY_KEY);
     if (savedValue === null) {
@@ -92,6 +93,9 @@ const PageView = () => {
   // Content change handler with editing flag
   const handleContentChange = (newContent: string) => {    
     if (pageId) {
+      console.log('Content change detected, updating backend');
+      contentUpdatesByEditor.current = true;
+      
       updatePageContent(pageId, newContent)
         .catch(() => {
           toast({

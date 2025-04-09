@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Layers, Plus, Pencil, X, Save } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Button from '@/components/common/Button';
@@ -37,6 +36,7 @@ const PageGroupEditor: React.FC<PageGroupEditorProps> = ({
     try {
       return initialContent ? JSON.parse(initialContent) : [];
     } catch (e) {
+      console.error('Error parsing initial content in PageGroupEditor:', e);
       return [];
     }
   });
@@ -44,6 +44,22 @@ const PageGroupEditor: React.FC<PageGroupEditorProps> = ({
   const [isEditing, setIsEditing] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState<PageLink | null>(null);
+  const contentHasChangedRef = useRef(false);
+  
+  console.log(`PageGroupEditor render for page ${pageId}, isEditing: ${isEditing}`);
+  
+  // Handle initial content changes (only when not editing)
+  useEffect(() => {
+    if (initialContent && !isEditing && !contentHasChangedRef.current) {
+      try {
+        console.log('Initial content updated, parsing content');
+        const parsed = initialContent ? JSON.parse(initialContent) : [];
+        setPageLinks(parsed);
+      } catch (e) {
+        console.error('Error parsing updated initialContent in PageGroupEditor:', e);
+      }
+    }
+  }, [initialContent, isEditing]);
   
   const handleSave = () => {
     if (onContentChange) {
@@ -54,6 +70,7 @@ const PageGroupEditor: React.FC<PageGroupEditorProps> = ({
         description: "Your page group has been updated"
       });
       setIsEditing(false);
+      contentHasChangedRef.current = false;
     }
   };
   
@@ -70,6 +87,7 @@ const PageGroupEditor: React.FC<PageGroupEditorProps> = ({
   const handleDeletePage = (id: string) => {
     setPageLinks(prev => prev.filter(page => page.id !== id));
     setIsEditing(true);
+    contentHasChangedRef.current = true;
   };
   
   const handleSaveDialog = () => {
@@ -94,6 +112,7 @@ const PageGroupEditor: React.FC<PageGroupEditorProps> = ({
     setIsDialogOpen(false);
     setCurrentPage(null);
     setIsEditing(true);
+    contentHasChangedRef.current = true;
   };
   
   return (

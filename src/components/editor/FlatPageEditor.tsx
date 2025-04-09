@@ -24,12 +24,17 @@ const FlatPageEditor: React.FC<FlatPageEditorProps> = ({
   const [wordCount, setWordCount] = useState(0);
   const [charCount, setCharCount] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const contentUpdatedFromProps = useRef(false);
   
-  // Initialize content when initialContent changes
+  console.log(`FlatPageEditor render for page ${pageId}, isEditing: ${isEditing}`);
+  
+  // Initialize content when initialContent changes (only if we're not in edit mode)
   useEffect(() => {
     if (initialContent && !isEditing) {
+      console.log('Initial content updated, setting editor content');
       setContent(initialContent);
       updateCounts(initialContent);
+      contentUpdatedFromProps.current = true;
     }
   }, [initialContent, isEditing]);
   
@@ -41,6 +46,7 @@ const FlatPageEditor: React.FC<FlatPageEditorProps> = ({
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newContent = e.target.value;
     setIsEditing(true);
+    contentUpdatedFromProps.current = false;
     setContent(newContent);
     updateCounts(newContent);
   };

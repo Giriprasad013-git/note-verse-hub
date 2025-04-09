@@ -15,13 +15,16 @@ import NewPage from "./pages/NewPage";
 import AuthPage from "./pages/AuthPage";
 import { AuthProvider } from "./context/AuthContext";
 
-// Create a client with better error handling and stale time
+// Create a client with better caching for content stability across navigations
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 5 * 60 * 1000, // 5 minutes
+      staleTime: 10 * 60 * 1000, // 10 minutes to reduce refetching
+      cacheTime: 15 * 60 * 1000, // 15 minutes to keep data in cache longer
       retry: 1,
       refetchOnWindowFocus: false,
+      refetchOnMount: false, // Don't refetch when component mounts
+      refetchOnReconnect: false, // Don't refetch on reconnect
     },
   },
 });

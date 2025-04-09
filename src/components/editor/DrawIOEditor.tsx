@@ -24,6 +24,9 @@ const DrawIOEditor: React.FC<DrawIOEditorProps> = ({
   const [editorContent, setEditorContent] = useState(initialContent);
   const initialLoadRef = useRef(false);
   const isEditingRef = useRef(false);
+  const contentChangeTriggeredByUser = useRef(false);
+  
+  console.log(`DrawIOEditor render for page ${pageId}, isEditing: ${isEditingRef.current}`);
   
   // Function to handle messages from the Draw.io iframe
   const handleMessage = (event: MessageEvent) => {
@@ -57,7 +60,9 @@ const DrawIOEditor: React.FC<DrawIOEditorProps> = ({
           console.log('Auto-saving Draw.io content');
           setEditorContent(message.xml);
           isEditingRef.current = true;
-          if (onContentChange) {
+          
+          // Only trigger content change if being edited by user (not from props change)
+          if (onContentChange && contentChangeTriggeredByUser.current) {
             onContentChange(message.xml);
           }
           setIsSaving(false);
@@ -67,6 +72,8 @@ const DrawIOEditor: React.FC<DrawIOEditorProps> = ({
         if (message.event === 'save' && message.xml) {
           console.log('Manually saving Draw.io content');
           setEditorContent(message.xml);
+          contentChangeTriggeredByUser.current = true; // Mark as user-initiated change
+          
           if (onContentChange) {
             onContentChange(message.xml);
             toast({
@@ -105,6 +112,7 @@ const DrawIOEditor: React.FC<DrawIOEditorProps> = ({
     if (initialContent && initialContent !== editorContent && !isEditingRef.current) {
       console.log('Initial content changed, updating editor content');
       setEditorContent(initialContent);
+      contentChangeTriggeredByUser.current = false; // This is a prop update, not user change
       
       // If editor is already loaded, reload the content
       if (isLoaded && iframeRef.current?.contentWindow) {
@@ -126,6 +134,7 @@ const DrawIOEditor: React.FC<DrawIOEditorProps> = ({
     if (iframeRef.current?.contentWindow) {
       console.log('Triggering manual save in Draw.io');
       setIsSaving(true);
+      contentChangeTriggeredByUser.current = true; // Mark save as user-initiated
       iframeRef.current.contentWindow.postMessage(
         JSON.stringify({ action: 'save' }), 
         '*'

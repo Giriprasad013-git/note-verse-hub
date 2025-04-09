@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef, memo } from 'react';
 import {
   BrainCircuit,
   FileText,
@@ -36,12 +36,23 @@ const Editor: React.FC<EditorProps> = ({
 }) => {
   // Ensure we have a valid initial content
   const safeInitialContent = initialContent || '';
+  const lastContentRef = useRef(safeInitialContent);
+  const lastPageIdRef = useRef(pageId);
   
-  console.log(`Editor rendering with type ${pageType} and content:`, safeInitialContent.substring(0, 50) + "...");
+  console.log(`Editor rendering with type ${pageType} for page ${pageId}`);
   
+  // Update the content reference when page changes or content significantly changes
   useEffect(() => {
-    console.log(`Editor mounted with type: ${pageType}`);
-  }, [pageType]);
+    const pageChanged = lastPageIdRef.current !== pageId;
+    
+    if (pageChanged) {
+      console.log(`Page changed from ${lastPageIdRef.current} to ${pageId}`);
+      lastPageIdRef.current = pageId;
+      lastContentRef.current = safeInitialContent;
+    }
+  }, [pageId, safeInitialContent]);
+  
+  console.log(`Rendering editor for page ${pageId}, type: ${pageType}`);
   
   switch (pageType) {
     case 'richtext':
@@ -72,7 +83,6 @@ const Editor: React.FC<EditorProps> = ({
         />
       );
     case 'flatpagev2':
-      // FlatPageV2 is fully implemented now
       return (
         <FlatPageV2Editor
           initialContent={safeInitialContent}
@@ -120,4 +130,12 @@ const Editor: React.FC<EditorProps> = ({
   }
 };
 
-export default Editor;
+// Use React.memo to prevent unnecessary re-renders
+export default memo(Editor, (prevProps, nextProps) => {
+  // Only re-render if a significant prop changes
+  const pageChanged = prevProps.pageId !== nextProps.pageId;
+  const typeChanged = prevProps.pageType !== nextProps.pageType;
+  
+  // Allow re-renders when page or type changes, but not for minor content edits
+  return !pageChanged && !typeChanged;
+});
