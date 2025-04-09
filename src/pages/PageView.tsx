@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { 
@@ -22,6 +23,9 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { useIsMobile } from '@/hooks/use-mobile';
 import { getPageTypeIcon, getPageTypeName } from '@/components/editor/EditorTypes';
 
+// Constants
+const SIDEBAR_VISIBILITY_KEY = 'sidebarVisibility';
+
 const PageView = () => {
   const { pageId } = useParams<{ pageId: string }>();
   const navigate = useNavigate();
@@ -34,18 +38,25 @@ const PageView = () => {
   const [tags, setTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState('');
   
-  const [showSidebar, setShowSidebar] = useState(() => {
+  // Get stored sidebar state with better error handling
+  const getSavedSidebarState = () => {
     try {
-      const saved = localStorage.getItem('showSidebar');
-      return saved !== null ? JSON.parse(saved) : !isMobile;
+      const savedValue = localStorage.getItem(SIDEBAR_VISIBILITY_KEY);
+      if (savedValue !== null) {
+        return JSON.parse(savedValue);
+      }
+      return !isMobile; // Default based on device
     } catch (error) {
-      console.error('Error parsing showSidebar from localStorage:', error);
-      return !isMobile;
+      console.error('Error parsing sidebarVisibility from localStorage:', error);
+      return !isMobile; // Fallback to device-based default
     }
-  });
+  };
+  
+  const [showSidebar, setShowSidebar] = useState(getSavedSidebarState);
   
   const titleInputRef = useRef<HTMLInputElement>(null);
   
+  // Setup page data
   useEffect(() => {
     if (pageData) {
       setTitle(pageData.page.title);
@@ -53,27 +64,32 @@ const PageView = () => {
     }
   }, [pageData]);
   
+  // Default sidebar visibility based on device
   useEffect(() => {
-    if (localStorage.getItem('showSidebar') === null) {
+    const savedValue = localStorage.getItem(SIDEBAR_VISIBILITY_KEY);
+    if (savedValue === null) {
       setShowSidebar(!isMobile);
     }
   }, [isMobile]);
   
+  // Persist sidebar visibility state
   useEffect(() => {
     try {
-      localStorage.setItem('showSidebar', JSON.stringify(showSidebar));
+      localStorage.setItem(SIDEBAR_VISIBILITY_KEY, JSON.stringify(showSidebar));
       console.log('Saving sidebar state to localStorage:', showSidebar);
     } catch (error) {
       console.error('Error saving showSidebar to localStorage:', error);
     }
   }, [showSidebar]);
   
+  // Focus title input when editing
   useEffect(() => {
     if (isEditingTitle && titleInputRef.current) {
       titleInputRef.current.focus();
     }
   }, [isEditingTitle]);
   
+  // Content change handler with editing flag
   const handleContentChange = (newContent: string) => {    
     if (pageId) {
       updatePageContent(pageId, newContent)
@@ -87,6 +103,7 @@ const PageView = () => {
     }
   };
   
+  // Handle title changes
   const handleTitleChange = useCallback(() => {
     if (!pageId || !pageData) {
       setIsEditingTitle(false);

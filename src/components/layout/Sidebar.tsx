@@ -25,31 +25,35 @@ import {
 import Input from '../common/Input';
 import UserSettings from './UserSettings';
 
+// Constants for localStorage keys
+const EXPANDED_NOTEBOOKS_KEY = 'expandedNotebooks';
+const EXPANDED_SECTIONS_KEY = 'expandedSections';
+const SIDEBAR_VISIBILITY_KEY = 'sidebarVisibility';
+
 const Sidebar = () => {
   const location = useLocation();
   const params = useParams<{ notebookId?: string; sectionId?: string; pageId?: string }>();
   const { notebooks, isLoading, getPageById, createNotebook } = useNotebooks();
   
-  // Initialize with localStorage values if available
-  const [expandedNotebooks, setExpandedNotebooks] = useState<Record<string, boolean>>(() => {
+  // Get stored sidebar state with better error handling
+  const getSavedState = (key: string, defaultValue: any) => {
     try {
-      const saved = localStorage.getItem('expandedNotebooks');
-      return saved ? JSON.parse(saved) : {};
+      const savedValue = localStorage.getItem(key);
+      return savedValue ? JSON.parse(savedValue) : defaultValue;
     } catch (error) {
-      console.error('Error parsing expandedNotebooks from localStorage:', error);
-      return {};
+      console.error(`Error parsing ${key} from localStorage:`, error);
+      return defaultValue;
     }
-  });
+  };
   
-  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>(() => {
-    try {
-      const saved = localStorage.getItem('expandedSections');
-      return saved ? JSON.parse(saved) : {};
-    } catch (error) {
-      console.error('Error parsing expandedSections from localStorage:', error);
-      return {};
-    }
-  });
+  // Initialize with localStorage values if available
+  const [expandedNotebooks, setExpandedNotebooks] = useState<Record<string, boolean>>(() => 
+    getSavedState(EXPANDED_NOTEBOOKS_KEY, {})
+  );
+  
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>(() => 
+    getSavedState(EXPANDED_SECTIONS_KEY, {})
+  );
   
   const [searchQuery, setSearchQuery] = useState('');
   const [isNewNotebookDialogOpen, setIsNewNotebookDialogOpen] = useState(false);
@@ -59,7 +63,7 @@ const Sidebar = () => {
   // Persist expanded states to localStorage whenever they change
   useEffect(() => {
     try {
-      localStorage.setItem('expandedNotebooks', JSON.stringify(expandedNotebooks));
+      localStorage.setItem(EXPANDED_NOTEBOOKS_KEY, JSON.stringify(expandedNotebooks));
     } catch (error) {
       console.error('Error saving expandedNotebooks to localStorage:', error);
     }
@@ -67,7 +71,7 @@ const Sidebar = () => {
 
   useEffect(() => {
     try {
-      localStorage.setItem('expandedSections', JSON.stringify(expandedSections));
+      localStorage.setItem(EXPANDED_SECTIONS_KEY, JSON.stringify(expandedSections));
     } catch (error) {
       console.error('Error saving expandedSections to localStorage:', error);
     }
@@ -75,7 +79,10 @@ const Sidebar = () => {
 
   // Expand notebooks and sections based on current route
   useEffect(() => {
+    console.log('Current route params:', params);
+    
     if (params.notebookId) {
+      console.log('Expanding notebook:', params.notebookId);
       setExpandedNotebooks(prev => ({
         ...prev,
         [params.notebookId as string]: true
@@ -83,6 +90,7 @@ const Sidebar = () => {
     }
     
     if (params.sectionId) {
+      console.log('Expanding section:', params.sectionId);
       setExpandedSections(prev => ({
         ...prev,
         [params.sectionId as string]: true
@@ -92,6 +100,7 @@ const Sidebar = () => {
     if (params.pageId) {
       const pageData = getPageById(params.pageId);
       if (pageData) {
+        console.log('Found page data, expanding notebook:', pageData.notebook.id, 'and section:', pageData.section.id);
         setExpandedNotebooks(prev => ({
           ...prev,
           [pageData.notebook.id]: true
@@ -100,6 +109,8 @@ const Sidebar = () => {
           ...prev,
           [pageData.section.id]: true
         }));
+      } else {
+        console.log('Page data not found for pageId:', params.pageId);
       }
     }
   }, [params.notebookId, params.sectionId, params.pageId, getPageById]);
@@ -159,9 +170,8 @@ const Sidebar = () => {
       )
     : notebooks;
 
-  // Default to showing sidebar unless explicitly set to false
   // Added logging to track the sidebar state
-  console.log('Rendering Sidebar component, notebooks:', notebooks.length);
+  console.log('Rendering Sidebar component, notebooks count:', notebooks.length);
 
   return (
     <aside className="h-screen w-64 flex-shrink-0 border-r border-border bg-background overflow-hidden flex flex-col animate-in">

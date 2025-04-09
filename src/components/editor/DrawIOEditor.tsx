@@ -23,18 +23,18 @@ const DrawIOEditor: React.FC<DrawIOEditorProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [editorContent, setEditorContent] = useState(initialContent);
   const initialLoadRef = useRef(false);
+  const isEditingRef = useRef(false);
   
   // Function to handle messages from the Draw.io iframe
   const handleMessage = (event: MessageEvent) => {
     if (typeof event.data === 'string') {
       try {
         const message = JSON.parse(event.data);
-        console.log('Draw.io message received:', message.event);
         
         // Handle initialization message
         if (message.event === 'init') {
-          setIsLoaded(true);
           console.log('Draw.io editor initialized');
+          setIsLoaded(true);
           initialLoadRef.current = true;
           
           // Load the content (either from state or initial prop)
@@ -56,6 +56,7 @@ const DrawIOEditor: React.FC<DrawIOEditorProps> = ({
         if (message.event === 'autosave' && message.xml) {
           console.log('Auto-saving Draw.io content');
           setEditorContent(message.xml);
+          isEditingRef.current = true;
           if (onContentChange) {
             onContentChange(message.xml);
           }
@@ -79,7 +80,7 @@ const DrawIOEditor: React.FC<DrawIOEditorProps> = ({
         // Handle exit message
         if (message.event === 'exit') {
           console.log('Draw.io editor exit event received');
-          // We can handle exiting here if needed
+          isEditingRef.current = false;
         }
       } catch (error) {
         console.error('Error processing message from Draw.io:', error);
@@ -98,9 +99,10 @@ const DrawIOEditor: React.FC<DrawIOEditorProps> = ({
     };
   }, []);
   
-  // Update editorContent when initialContent changes
+  // Update editorContent when initialContent changes and we're not in edit mode
   useEffect(() => {
-    if (initialContent && initialContent !== editorContent) {
+    // Only update if we're not currently editing and the content actually changed
+    if (initialContent && initialContent !== editorContent && !isEditingRef.current) {
       console.log('Initial content changed, updating editor content');
       setEditorContent(initialContent);
       
