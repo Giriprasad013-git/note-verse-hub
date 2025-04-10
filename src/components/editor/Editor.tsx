@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, memo } from 'react';
 import {
   BrainCircuit,
@@ -152,8 +153,9 @@ export default memo(Editor, (prevProps, nextProps) => {
   const initialContentChanged = 
     prevProps.pageId === nextProps.pageId && 
     prevProps.initialContent !== nextProps.initialContent &&
-    // Only consider initial content changes when loading a different page
-    nextProps.initialContent !== ''; 
+    // Only consider initial content changes when loading a different page or on first load
+    nextProps.initialContent !== '' && 
+    prevProps.initialContent === ''; // This prevents re-renders from saved content updates
   
   // Return true if none of these conditions are met (meaning we should skip re-rendering)
   // This prevents re-renders during editing (which happens through onContentChange)

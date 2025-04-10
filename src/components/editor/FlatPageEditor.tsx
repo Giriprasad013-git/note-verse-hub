@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { FileText, Save, Copy, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -25,6 +24,8 @@ const FlatPageEditor: React.FC<FlatPageEditorProps> = ({
   const [charCount, setCharCount] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const contentUpdatedFromProps = useRef(false);
+  const cursorPositionRef = useRef<{start: number, end: number}>({start: 0, end: 0});
+  const isContentUpdating = useRef(false);
   
   console.log(`FlatPageEditor render for page ${pageId}, isEditing: ${isEditing}`);
   
@@ -32,9 +33,14 @@ const FlatPageEditor: React.FC<FlatPageEditorProps> = ({
   useEffect(() => {
     if (initialContent && !isEditing) {
       console.log('Initial content updated, setting editor content');
+      isContentUpdating.current = true;
       setContent(initialContent);
       updateCounts(initialContent);
       contentUpdatedFromProps.current = true;
+      
+      setTimeout(() => {
+        isContentUpdating.current = false;
+      }, 10);
     }
   }, [initialContent, isEditing]);
   
@@ -43,23 +49,49 @@ const FlatPageEditor: React.FC<FlatPageEditorProps> = ({
     setWordCount(text.trim() === '' ? 0 : text.trim().split(/\s+/).length);
   };
   
+  // Save cursor position before any content changes
+  const saveCursorPosition = () => {
+    if (textareaRef.current) {
+      cursorPositionRef.current = {
+        start: textareaRef.current.selectionStart,
+        end: textareaRef.current.selectionEnd
+      };
+    }
+  };
+  
+  // Restore cursor position after content changes
+  const restoreCursorPosition = () => {
+    if (textareaRef.current && !isContentUpdating.current) {
+      const { start, end } = cursorPositionRef.current;
+      textareaRef.current.focus();
+      textareaRef.current.setSelectionRange(start, end);
+    }
+  };
+  
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    saveCursorPosition();
     const newContent = e.target.value;
     setIsEditing(true);
     contentUpdatedFromProps.current = false;
     setContent(newContent);
     updateCounts(newContent);
+    
+    setTimeout(restoreCursorPosition, 10);
   };
   
   const handleSave = () => {
+    saveCursorPosition();
+    
     if (onContentChange) {
       onContentChange(content);
       toast({
         title: "Changes saved",
         description: "Your document has been saved successfully"
       });
-      setIsEditing(false);
+      // Keep isEditing true to prevent reinitializing from initialContent
     }
+    
+    setTimeout(restoreCursorPosition, 10);
   };
   
   const handleCopy = () => {
@@ -122,6 +154,8 @@ const FlatPageEditor: React.FC<FlatPageEditorProps> = ({
           ref={textareaRef}
           value={content}
           onChange={handleChange}
+          onKeyDown={() => saveCursorPosition()}
+          onMouseUp={() => saveCursorPosition()}
           placeholder="Start typing your content here..."
           className="w-full h-full min-h-[calc(100vh-12rem)] p-4 text-base"
         />
