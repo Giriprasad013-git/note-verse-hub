@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Layout, Save, Bold, Italic, List, Heading, Link as LinkIcon, Type, AlignLeft, AlignCenter, AlignRight, Quote } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -35,16 +34,48 @@ const FlatPageV2Editor: React.FC<FlatPageV2EditorProps> = ({
   const [fontFamily, setFontFamily] = useState('sans');
   const [textAlign, setTextAlign] = useState('left');
   const contentRef = useRef<string>(initialContent);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const cursorPositionRef = useRef<{start: number, end: number}>({start: 0, end: 0});
+  const isContentUpdating = useRef(false);
   
   // Initialize content when initialContent changes
   useEffect(() => {
     if (initialContent && contentRef.current !== initialContent) {
-      setContent(initialContent);
-      contentRef.current = initialContent;
+      // Only update content from initialContent if we're not currently editing
+      if (!isEditing) {
+        isContentUpdating.current = true;
+        setContent(initialContent);
+        contentRef.current = initialContent;
+        
+        // Reset cursor position when loading new content
+        setTimeout(() => {
+          isContentUpdating.current = false;
+        }, 10);
+      }
     }
-  }, [initialContent]);
+  }, [initialContent, isEditing]);
+  
+  // Save cursor position before any content changes
+  const saveCursorPosition = () => {
+    if (textareaRef.current) {
+      cursorPositionRef.current = {
+        start: textareaRef.current.selectionStart,
+        end: textareaRef.current.selectionEnd
+      };
+    }
+  };
+  
+  // Restore cursor position after content changes
+  const restoreCursorPosition = () => {
+    if (textareaRef.current && !isContentUpdating.current) {
+      const { start, end } = cursorPositionRef.current;
+      textareaRef.current.focus();
+      textareaRef.current.setSelectionRange(start, end);
+    }
+  };
   
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    saveCursorPosition();
     setIsEditing(true);
     const newContent = e.target.value;
     setContent(newContent);
@@ -54,22 +85,28 @@ const FlatPageV2Editor: React.FC<FlatPageV2EditorProps> = ({
     const timeoutId = setTimeout(() => {
       if (onContentChange) {
         onContentChange(newContent);
-        setIsEditing(false);
+        // Don't reset isEditing here to prevent reinitializing from initialContent
       }
+      
+      setTimeout(restoreCursorPosition, 10);
     }, 1000);
     
     return () => clearTimeout(timeoutId);
   };
   
   const handleSave = () => {
+    saveCursorPosition();
+    
     if (onContentChange) {
       onContentChange(content);
       toast({
         title: "Changes saved",
         description: "Your document has been saved successfully"
       });
-      setIsEditing(false);
+      // Keep isEditing true to prevent reinitializing from initialContent
     }
+    
+    setTimeout(restoreCursorPosition, 10);
   };
   
   // Simple markdown-like preview renderer with text alignment
@@ -105,8 +142,10 @@ const FlatPageV2Editor: React.FC<FlatPageV2EditorProps> = ({
   const insertMarkdown = (markdown: string) => {
     if (viewMode === 'preview') return;
     
-    const textarea = document.querySelector('textarea');
+    const textarea = textareaRef.current;
     if (!textarea) return;
+    
+    saveCursorPosition();
     
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
@@ -118,7 +157,9 @@ const FlatPageV2Editor: React.FC<FlatPageV2EditorProps> = ({
     // Set cursor position after the inserted markdown
     setTimeout(() => {
       textarea.focus();
-      textarea.setSelectionRange(start + markdown.length, start + markdown.length);
+      const newCursorPos = start + markdown.length;
+      textarea.setSelectionRange(newCursorPos, newCursorPos);
+      cursorPositionRef.current = { start: newCursorPos, end: newCursorPos };
     }, 0);
   };
 
@@ -241,8 +282,11 @@ const FlatPageV2Editor: React.FC<FlatPageV2EditorProps> = ({
       <div className="flex-1 p-4 overflow-auto">
         {viewMode === 'edit' ? (
           <Textarea
+            ref={textareaRef}
             value={content}
             onChange={handleChange}
+            onKeyDown={() => saveCursorPosition()}
+            onMouseUp={() => saveCursorPosition()}
             placeholder="Start typing your content here. You can use basic markdown syntax like # for headings, ** for bold, * for italic, and - for list items."
             className={cn(
               "w-full h-full min-h-[calc(100vh-18rem)] p-4 text-base", 
