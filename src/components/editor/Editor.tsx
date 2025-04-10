@@ -39,6 +39,7 @@ const Editor: React.FC<EditorProps> = ({
   const lastContentRef = useRef(safeInitialContent);
   const lastPageIdRef = useRef(pageId);
   const isEditingRef = useRef(false);
+  const contentUpdatesByEditor = useRef(false);
   
   console.log(`Editor rendering with type ${pageType} for page ${pageId}`);
   
@@ -51,13 +52,16 @@ const Editor: React.FC<EditorProps> = ({
       lastPageIdRef.current = pageId;
       lastContentRef.current = safeInitialContent;
       isEditingRef.current = false;
+      contentUpdatesByEditor.current = false;
     }
   }, [pageId, safeInitialContent]);
   
   // Wrap content change handler to track editing state
   const handleContentChange = (content: string) => {
     isEditingRef.current = true;
+    contentUpdatesByEditor.current = true;
     lastContentRef.current = content;
+    
     if (onContentChange) {
       onContentChange(content);
     }
@@ -152,7 +156,7 @@ export default memo(Editor, (prevProps, nextProps) => {
     // Only consider initial content changes when loading a different page
     nextProps.initialContent !== ''; 
   
-  // Allow re-renders when page or type changes, or when initial content changes for a new page
-  // but prevent re-renders during editing (which happens through onContentChange)
+  // Return true if none of these conditions are met (meaning we should skip re-rendering)
+  // This prevents re-renders during editing (which happens through onContentChange)
   return !pageChanged && !typeChanged && !initialContentChanged;
 });
